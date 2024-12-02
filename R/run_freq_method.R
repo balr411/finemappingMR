@@ -75,6 +75,8 @@
 #' effect variance estimates, and the PIPs for each non-zero effect, and the
 #' vector of ELBO iterations.
 #'
+#' @importFrom stats var
+#'
 #' @export
 
 run_freq_method <- function(x, y, G_x, G_y, L_x = 10, L_y = 10,
