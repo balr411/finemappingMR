@@ -280,6 +280,7 @@ run_freq_method <- function(x, y, G_x, G_y, L_x = 10, L_y = 10,
   #ELBO
   to_return$elbo <- elbo_conv_vec
 
+  return(to_return)
 }
 
 
