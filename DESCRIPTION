@@ -1,0 +1,12 @@
+Package: finemappingMR
+Title: Mendelian Randomization Using SuSiE Fine-Mapping
+Version: 0.0.0.9000
+Authors@R: 
+    person("Brady", "Ryan", , "balr@umich.edu", role = c("aut", "cre"),
+           comment = c(ORCID = "YOUR-ORCID-ID"))
+Description: Implements our MR method which uses the SuSiE fine-mapping framework.
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.2
