@@ -2,4 +2,6 @@
 
 export(run_freq_method)
 export(run_freq_method_ss)
+export(run_freq_method_ss_dev)
+export(run_freq_method_ss_forceGammaZero)
 importFrom(stats,var)
