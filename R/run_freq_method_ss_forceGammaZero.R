@@ -94,7 +94,7 @@
 #'
 #' @export
 
-run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
+run_freq_method_ss_forceGammaZero <- function(Gx_t_Gx, Gx_t_x, xtx,
                                Gy_t_Gy, Gy_t_y, yty,
                                n_x, n_y,
                                L_x = 10, L_y = 10,
