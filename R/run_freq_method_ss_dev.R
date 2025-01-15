@@ -1,7 +1,8 @@
 #' @title Frequentist MR estimate using sufficient statistics for exposure and outcome.
 #'
 #' @description Function that performs our frequentist MR estimation method using
-#' sufficient statistics for exposure and outcome.
+#' sufficient statistics for exposure and outcome. This is a development version
+#' of run_freq_method_ss.R, where I am trying to improve efficiency.
 #'
 #' @param Gx_t_Gx A list of matrices \eqn{G_x'G_x} in which the columns of \eqn{G_x}
 #'   are centered to have mean zero. Exposure data.
@@ -92,7 +93,7 @@
 #'
 #' @export
 
-run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
+run_freq_method_ss_dev <- function(Gx_t_Gx, Gx_t_x, xtx,
                                Gy_t_Gy, Gy_t_y, yty,
                                n_x, n_y,
                                L_x = 10, L_y = 10,
@@ -149,7 +150,11 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
   elbo_conv_vec <- c()
 
+  #Fitted values
+  alpha_fitted <- list()
+
   #Initialize the d and scale for each of the GtG matrices
+  #Also initialize fitted values
   for(i in 1:length(Gx_t_Gx)){
     csd = rep(1, ncol(Gx_t_Gx[[i]]))
     attr(Gx_t_Gx[[i]], "d") = diag(Gx_t_Gx[[i]])
@@ -158,18 +163,25 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
     csd = rep(1, ncol(Gy_t_Gy[[i]]))
     attr(Gy_t_Gy[[i]], "d") = diag(Gy_t_Gy[[i]])
     attr(Gy_t_Gy[[i]], "scaled:scale") = csd
+
+    #Fitted values for alpha updates
+    alpha_fitted[[i]] <- rep(0, ncol(Gy_t_Gy[[i]]))
   }
 
   conv <- FALSE
   iter <- 1
 
+
   while(!conv & iter < max_iter){
     #Update alpha first
     for(m in 1:M){
+      #Update b part of fitted value
+      #alpha_fitted_b <- Gy_t_Gy[[m]] %*% (mu_gamma*colSums(mu_b[[m]] * alpha_b[[m]]))
       for(l in 1:L_y){
         # Remove lth effect from fitted values.
-        # Note that we shouldn't actually have to include each of the m loci since we are assuming that Gj^TGk = 0
+        #alpha_fitted[[m]] <- alpha_fitted[[m]] - Gy_t_Gy[[m]] %*% (mu_a[[m]][l,] * alpha_a[[m]][l,])
         GytR <- Gy_t_y[[m]] - Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]][-l,] * alpha_a[[m]][-l,]) + mu_gamma*colSums(mu_b[[m]] * alpha_b[[m]]))
+        #GytR <- Gy_t_y[[m]] - alpha_fitted[[m]] - alpha_fitted_b
 
         test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(GytR), attr(Gy_t_Gy[[m]],"d"), V_y[l, m], residual_variance = sigma2_y, optimize_V = "optim")
 
@@ -180,6 +192,8 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
         kl_a[[m]][l] <- -test_curr_ss$lbf_model +
           susieR:::SER_posterior_e_loglik_ss(attr(Gy_t_Gy[[m]],"d"), GytR, sigma2_y, test_curr_ss$alpha * test_curr_ss$mu,
                                              test_curr_ss$alpha * test_curr_ss$mu2)
+
+        #alpha_fitted[[m]] <- alpha_fitted[[m]] + Gy_t_Gy[[m]] %*% (mu_a[[m]][l,] * alpha_a[[m]][l,])
       }
     }
 
@@ -192,8 +206,9 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
         attr(Gstar_t_Gstar, "d") = diag(Gstar_t_Gstar)
         attr(Gstar_t_Gstar, "scaled:scale") = Gstar_t_Gstar
 
+        mu_alpha_b <- colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])
 
-        Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,]))) + (mu_gamma/sigma2_y)*(Gy_t_y[[m]] - Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])))
+        Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% mu_alpha_b) + (mu_gamma/sigma2_y)*(Gy_t_y[[m]] - Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu_gamma*Gy_t_Gy[[m]] %*% (mu_alpha_b))
 
         test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(Gstar_t_R), attr(Gstar_t_Gstar,"d"), V_x[l, m], residual_variance = 1, optimize_V = "optim")
 
@@ -210,7 +225,7 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
     #Update the ELBO now because the previous estimate of gamma was used in kl(a), kl(b)
     elbo_curr <- freq_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
-                      alpha_a, mu_a, mu2_a, mu_gamma, kl_a, kl_b, n_x, n_y)
+                              alpha_a, mu_a, mu2_a, mu_gamma, kl_a, kl_b, n_x, n_y)
 
     elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
 
@@ -272,11 +287,5 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
   return(to_return)
 }
-
-
-
-
-
-
 
 
