@@ -82,6 +82,10 @@
 #'
 #' @param max_iter Maximum number of iterations before stopping estimation procedure.
 #'
+#' @param calc_cs_x Calculate credible sets for the exposure? Default = FALSE.
+#'
+#' @param calc_cs_y Calculate credible sets for the outcome? Default = FALSE.
+#'
 #' @return A list containing various results from the estimation procedure,
 #' including a data frame containing the gamma estimation results, as well as
 #' the posterior first and second moments for b and alpha, the prior non-zero
@@ -105,7 +109,9 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
                                estimate_residual_variance_x = FALSE,
                                estimate_residual_variance_y = FALSE,
                                tol = 1e-4,
-                               max_iter = 1000){
+                               max_iter = 1000,
+                               calc_cs_x = FALSE,
+                               calc_cs_y = FALSE){
 
   varX <- xtx/(n_x - 1) #Note need to think about changing this to add functionality for using summary statistics where xtx/yty are unknown
   varY <- yty/(n_y - 1)
@@ -247,6 +253,7 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
     iter <- iter + 1
   }
 
+
   #Return a list with the various components
   to_return <- list()
 
@@ -269,6 +276,15 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
   #ELBO
   to_return$elbo <- elbo_conv_vec
+
+  #Calculate and return credible sets if desired
+  if(calc_cs_x){
+    to_return$cs_x <- get_cs(V = V_x, alpha = alpha_b, G_t_G = Gx_t_Gx)
+  }
+
+  if(calc_cs_y){
+    to_return$cs_y <- get_cs(V = V_y, alpha = alpha_a, G_t_G = Gy_t_Gy)
+  }
 
   return(to_return)
 }
