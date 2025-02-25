@@ -30,7 +30,7 @@ get_cs <- function(V, alpha, G_t_G){
     include_idx <- as.logical(include_idx)
 
     if (sum(include_idx) == 0){
-      cs_x[[m]] <- NULL
+      cs_x[[m]] <- NA
     }else{
       cs <- cs[include_idx]
       claimed_coverage <- claimed_coverage[include_idx]
@@ -56,7 +56,7 @@ get_cs <- function(V, alpha, G_t_G){
 
         cs_x[[m]] <- cs
       }else{
-        cs_x[[m]] <- NULL
+        cs_x[[m]] <- NA
       }
     }
   }
