@@ -83,6 +83,12 @@
 #'
 #' @param max_iter Maximum number of iterations before stopping estimation procedure.
 #'
+#' @param calc_cs_x Calculate credible sets for the exposure? Default = FALSE.
+#'
+#' @param calc_cs_y Calculate credible sets for the outcome? Default = FALSE.
+#'
+#' @param verbose Output progress? Default = FALSE.
+#'
 #' @return A list containing various results from the estimation procedure,
 #' including a data frame containing the gamma estimation results, as well as
 #' the posterior first and second moments for b and alpha, the prior non-zero
@@ -109,7 +115,7 @@ run_freq_method_ss_dev <- function(Gx_t_Gx, Gx_t_x, xtx,
                                    max_iter = 1000,
                                    calc_cs_x = FALSE,
                                    calc_cs_y = FALSE,
-                                   verbose = TRUE){
+                                   verbose = FALSE){
 
   varX <- xtx/(n_x - 1) #Note need to think about changing this to add functionality for using summary statistics where xtx/yty are unknown
   varY <- yty/(n_y - 1)
