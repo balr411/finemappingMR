@@ -254,6 +254,11 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
     }
 
     iter <- iter + 1
+
+    if(verbose){
+      print(str_glue("Starting iteration {iter}, gamma_curr = {mu_gamma}"))
+    }
+
   }
 
 
