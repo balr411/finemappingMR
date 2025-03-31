@@ -229,8 +229,11 @@ run_freq_method_ss_dev <- function(Gx_t_Gx, Gx_t_x, xtx,
 
 
     #Update the ELBO now because the previous estimate of gamma was used in kl(a), kl(b)
-    elbo_curr <- freq_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
-                              alpha_a, mu_a, mu2_a, mu_gamma, kl_a, kl_b, n_x, n_y)
+    system.time({
+      elbo_curr <- freq_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
+                                alpha_a, mu_a, mu2_a, mu_gamma, kl_a, kl_b, n_x, n_y)
+    })
+
 
     elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
 
