@@ -202,10 +202,9 @@ run_freq_method_ss_dev <- function(Gx_t_Gx, Gx_t_x, xtx,
 
         alpha_fitted[[m]] <- alpha_fitted[[m]] + Gy_t_Gy[[m]] %*% (mu_a[[m]][l,] * alpha_a[[m]][l,])
       }
-    }
 
     #Update b next
-    for(m in 1:M){
+
       for(l in 1:L_x){
         #Get GtG
         Gstar_t_Gstar <- (1/sigma2_x)*Gx_t_Gx[[m]] + (mu_gamma^2/sigma2_y)*Gy_t_Gy[[m]]
