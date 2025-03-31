@@ -94,19 +94,22 @@
 #' @export
 
 run_freq_method_ss_dev <- function(Gx_t_Gx, Gx_t_x, xtx,
-                               Gy_t_Gy, Gy_t_y, yty,
-                               n_x, n_y,
-                               L_x = 10, L_y = 10,
-                               scaled_prior_variance_x = 0.2,
-                               scaled_prior_variance_y = 0.2,
-                               estimate_prior_variance_x = TRUE,
-                               estimate_prior_variance_y = TRUE,
-                               residual_variance_x = NULL,
-                               residual_variance_y = NULL,
-                               estimate_residual_variance_x = FALSE,
-                               estimate_residual_variance_y = FALSE,
-                               tol = 1e-4,
-                               max_iter = 1000){
+                                   Gy_t_Gy, Gy_t_y, yty,
+                                   n_x, n_y,
+                                   L_x = 10, L_y = 10,
+                                   scaled_prior_variance_x = 0.2,
+                                   scaled_prior_variance_y = 0.2,
+                                   estimate_prior_variance_x = TRUE,
+                                   estimate_prior_variance_y = TRUE,
+                                   residual_variance_x = NULL,
+                                   residual_variance_y = NULL,
+                                   estimate_residual_variance_x = FALSE,
+                                   estimate_residual_variance_y = FALSE,
+                                   tol = 1e-4,
+                                   max_iter = 1000,
+                                   calc_cs_x = FALSE,
+                                   calc_cs_y = FALSE,
+                                   verbose = TRUE){
 
   varX <- xtx/(n_x - 1) #Note need to think about changing this to add functionality for using summary statistics where xtx/yty are unknown
   varY <- yty/(n_y - 1)
@@ -154,7 +157,6 @@ run_freq_method_ss_dev <- function(Gx_t_Gx, Gx_t_x, xtx,
   alpha_fitted <- list()
 
   #Initialize the d and scale for each of the GtG matrices
-  #Also initialize fitted values
   for(i in 1:length(Gx_t_Gx)){
     csd = rep(1, ncol(Gx_t_Gx[[i]]))
     attr(Gx_t_Gx[[i]], "d") = diag(Gx_t_Gx[[i]])
@@ -171,17 +173,16 @@ run_freq_method_ss_dev <- function(Gx_t_Gx, Gx_t_x, xtx,
   conv <- FALSE
   iter <- 1
 
-
   while(!conv & iter < max_iter){
     #Update alpha first
     for(m in 1:M){
       #Update b part of fitted value
-      #alpha_fitted_b <- Gy_t_Gy[[m]] %*% (mu_gamma*colSums(mu_b[[m]] * alpha_b[[m]]))
+      alpha_fitted_b <- Gy_t_Gy[[m]] %*% (mu_gamma*colSums(mu_b[[m]] * alpha_b[[m]]))
       for(l in 1:L_y){
         # Remove lth effect from fitted values.
-        #alpha_fitted[[m]] <- alpha_fitted[[m]] - Gy_t_Gy[[m]] %*% (mu_a[[m]][l,] * alpha_a[[m]][l,])
-        GytR <- Gy_t_y[[m]] - Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]][-l,] * alpha_a[[m]][-l,]) + mu_gamma*colSums(mu_b[[m]] * alpha_b[[m]]))
-        #GytR <- Gy_t_y[[m]] - alpha_fitted[[m]] - alpha_fitted_b
+        alpha_fitted[[m]] <- alpha_fitted[[m]] - Gy_t_Gy[[m]] %*% (mu_a[[m]][l,] * alpha_a[[m]][l,])
+        #GytR <- Gy_t_y[[m]] - Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]][-l,] * alpha_a[[m]][-l,]) + mu_gamma*colSums(mu_b[[m]] * alpha_b[[m]]))
+        GytR <- Gy_t_y[[m]] - alpha_fitted[[m]] - alpha_fitted_b
 
         test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(GytR), attr(Gy_t_Gy[[m]],"d"), V_y[l, m], residual_variance = sigma2_y, optimize_V = "optim")
 
@@ -193,7 +194,7 @@ run_freq_method_ss_dev <- function(Gx_t_Gx, Gx_t_x, xtx,
           susieR:::SER_posterior_e_loglik_ss(attr(Gy_t_Gy[[m]],"d"), GytR, sigma2_y, test_curr_ss$alpha * test_curr_ss$mu,
                                              test_curr_ss$alpha * test_curr_ss$mu2)
 
-        #alpha_fitted[[m]] <- alpha_fitted[[m]] + Gy_t_Gy[[m]] %*% (mu_a[[m]][l,] * alpha_a[[m]][l,])
+        alpha_fitted[[m]] <- alpha_fitted[[m]] + Gy_t_Gy[[m]] %*% (mu_a[[m]][l,] * alpha_a[[m]][l,])
       }
     }
 
@@ -206,9 +207,8 @@ run_freq_method_ss_dev <- function(Gx_t_Gx, Gx_t_x, xtx,
         attr(Gstar_t_Gstar, "d") = diag(Gstar_t_Gstar)
         attr(Gstar_t_Gstar, "scaled:scale") = Gstar_t_Gstar
 
-        mu_alpha_b <- colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])
 
-        Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% mu_alpha_b) + (mu_gamma/sigma2_y)*(Gy_t_y[[m]] - Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu_gamma*Gy_t_Gy[[m]] %*% (mu_alpha_b))
+        Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,]))) + (mu_gamma/sigma2_y)*(Gy_t_y[[m]] - Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])))
 
         test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(Gstar_t_R), attr(Gstar_t_Gstar,"d"), V_x[l, m], residual_variance = 1, optimize_V = "optim")
 
@@ -260,7 +260,13 @@ run_freq_method_ss_dev <- function(Gx_t_Gx, Gx_t_x, xtx,
     }
 
     iter <- iter + 1
+
+    if(verbose){
+      print(str_glue("Starting iteration {iter}, gamma_curr = {mu_gamma}"))
+    }
+
   }
+
 
   #Return a list with the various components
   to_return <- list()
@@ -285,7 +291,33 @@ run_freq_method_ss_dev <- function(Gx_t_Gx, Gx_t_x, xtx,
   #ELBO
   to_return$elbo <- elbo_conv_vec
 
+  #Calculate and return credible sets if desired
+  if(calc_cs_x){
+    to_return$cs_x <- get_cs(V = V_x, alpha = alpha_b, G_t_G = Gx_t_Gx)
+  }
+
+  if(calc_cs_y){
+    to_return$cs_y <- get_cs(V = V_y, alpha = alpha_a, G_t_G = Gy_t_Gy)
+  }
+
   return(to_return)
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
