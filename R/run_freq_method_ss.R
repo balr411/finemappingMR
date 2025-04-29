@@ -157,6 +157,8 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
   mu_gamma <- 0
 
   elbo_conv_vec <- c()
+  lik_x <- c()
+  lik_y <- c()
 
   #Initialize the d and scale for each of the GtG matrices
   for(i in 1:length(Gx_t_Gx)){
@@ -218,10 +220,16 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
 
     #Update the ELBO now because the previous estimate of gamma was used in kl(a), kl(b)
-    elbo_curr <- freq_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
+    elbo_full <- freq_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
                       alpha_a, mu_a, mu2_a, mu_gamma, kl_a, kl_b, n_x, n_y)
 
+    elbo_curr <- elbo_full[[1]]
+    lik_y_curr <- elbo_full[[2]]
+    lik_x_curr <- elbo_full[[3]]
+
     elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
+    lik_x <- c(lik_x, lik_x_curr)
+    lik_y <- c(lik_y, lik_y_curr)
 
 
     #Now update gamma
@@ -284,6 +292,8 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
   #ELBO
   to_return$elbo <- elbo_conv_vec
+  to_return$lik_x <- lik_x
+  to_return$lik_y <- lik_y
 
   #Calculate and return credible sets if desired
   if(calc_cs_x){

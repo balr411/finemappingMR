@@ -74,7 +74,7 @@ freq_elbo_ss <- function(sigma2_y, sigma2_x, GxtGx, GytGy, GxtX, GytY, alpha_b, 
 
   elbo_curr <- part1 - (1/(2*sigma2_y))*part2 - (1/(2*sigma2_x))*part3 + part4
 
-  return(elbo_curr)
+  return(list(elbo_curr, part2, part3))
 }
 
 
