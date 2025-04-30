@@ -88,6 +88,9 @@
 #'
 #' @param verbose Output progress? Default = FALSE.
 #'
+#' @param susie_init SuSiE object to initialize the exposure to. Currently only
+#' works if M = 1. Default = NULL.
+#'
 #' @return A list containing various results from the estimation procedure,
 #' including a data frame containing the gamma estimation results, as well as
 #' the posterior first and second moments for b and alpha, the prior non-zero
@@ -114,7 +117,8 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
                                max_iter = 1000,
                                calc_cs_x = FALSE,
                                calc_cs_y = FALSE,
-                               verbose = FALSE){
+                               verbose = FALSE,
+                               susie_init = NULL){
 
   varX <- xtx/(n_x - 1) #Note need to think about changing this to add functionality for using summary statistics where xtx/yty are unknown
   varY <- yty/(n_y - 1)
@@ -133,18 +137,38 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
   #Initialize all of the estimates
   M <- length(Gx_t_Gx) #Number of loci - should later add some checks that the same amount of regions were given
 
+  #Check if a SuSiE object was given for initialization
+  if(!is.null(susie_init)){
+    if(M != 1){
+      stop("susie_init is currently only implemented for a single region")
+    }
+
+    V_x <- matrix(susie_init$V, nrow = L_x, ncol = 1)
+
+    mu_b <- list()
+    mu_b[[1]] <- susie_init$mu
+
+    mu2_b <- list()
+    mu2_b[[1]] <- susie_init$mu2
+
+    alpha_b <- list()
+    alpha_b[[1]] <- susie_init$alpha
+
+    kl_b <- lapply(Gx_t_Gx, FUN = function(x) rep(0, L_x)) #Note not sure that this would be correct
+  }else{
+    V_x_init <- scaled_prior_variance_x * varX
+    V_x <- matrix(rep(V_x_init, L_x*M), nrow = L_x, ncol = M)
+
+    #b estimates
+    mu_b <- lapply(Gx_t_Gx, function(x) matrix(0, nrow = L_x, ncol = ncol(x)))
+    mu2_b <- lapply(Gx_t_Gx, function(x) matrix(0, nrow = L_x, ncol = ncol(x)))
+    alpha_b <- lapply(Gx_t_Gx, function(x) matrix(1/ncol(x), nrow = L_x, ncol = ncol(x)))
+    kl_b <- lapply(Gx_t_Gx, FUN = function(x) rep(0, L_x))
+  }
+
   #Initialize variance estimates
-  V_x_init <- scaled_prior_variance_x * varX
   V_y_init <- scaled_prior_variance_y * varY
-
-  V_x <- matrix(rep(V_x_init, L_x*M), nrow = L_x, ncol = M)
   V_y <- matrix(rep(V_y_init, L_y*M), nrow = L_y, ncol = M)
-
-  #b estimates
-  mu_b <- lapply(Gx_t_Gx, function(x) matrix(0, nrow = L_x, ncol = ncol(x)))
-  mu2_b <- lapply(Gx_t_Gx, function(x) matrix(0, nrow = L_x, ncol = ncol(x)))
-  alpha_b <- lapply(Gx_t_Gx, function(x) matrix(1/ncol(x), nrow = L_x, ncol = ncol(x)))
-  kl_b <- lapply(Gx_t_Gx, FUN = function(x) rep(0, L_x))
 
   #alpha (a) estimates
   mu_a <- lapply(Gy_t_Gy, function(x) matrix(0, nrow = L_y, ncol = ncol(x)))
