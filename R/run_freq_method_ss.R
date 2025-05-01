@@ -91,6 +91,8 @@
 #' @param susie_init SuSiE object to initialize the exposure to. Currently only
 #' works if M = 1. Default = NULL.
 #'
+#' @param gamma_init Value to initialize gamma at.
+#'
 #' @return A list containing various results from the estimation procedure,
 #' including a data frame containing the gamma estimation results, as well as
 #' the posterior first and second moments for b and alpha, the prior non-zero
@@ -118,7 +120,8 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
                                calc_cs_x = FALSE,
                                calc_cs_y = FALSE,
                                verbose = FALSE,
-                               susie_init = NULL){
+                               susie_init = NULL,
+                               gamma_init = 0){
 
   varX <- xtx/(n_x - 1) #Note need to think about changing this to add functionality for using summary statistics where xtx/yty are unknown
   varY <- yty/(n_y - 1)
@@ -178,7 +181,7 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
   #gamma estimate
   sigma2_gamma_curr <- 0
-  mu_gamma <- 0
+  mu_gamma <- gamma_init
 
   elbo_conv_vec <- c()
   lik_x <- c()
