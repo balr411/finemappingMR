@@ -84,6 +84,8 @@
 #'
 #' @param max_iter Maximum number of iterations before stopping estimation procedure.
 #'
+#' @param verbose Output progress? Default = FALSE.
+#'
 #' @return A list containing various results from the estimation procedure,
 #' including a data frame containing the gamma estimation results, as well as
 #' the posterior first and second moments for b and alpha, the prior non-zero
@@ -107,7 +109,8 @@ run_freq_method_ss_forceGammaZero <- function(Gx_t_Gx, Gx_t_x, xtx,
                                estimate_residual_variance_x = FALSE,
                                estimate_residual_variance_y = FALSE,
                                tol = 1e-4,
-                               max_iter = 1000){
+                               max_iter = 1000,
+                               verbose = FALSE){
 
   varX <- xtx/(n_x - 1) #Note need to think about changing this to add functionality for using summary statistics where xtx/yty are unknown
   varY <- yty/(n_y - 1)
@@ -211,9 +214,10 @@ run_freq_method_ss_forceGammaZero <- function(Gx_t_Gx, Gx_t_x, xtx,
 
 
     #Update the ELBO now because the previous estimate of gamma was used in kl(a), kl(b)
-    elbo_curr <- freq_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
+    elbo_full <- freq_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
                               alpha_a, mu_a, mu2_a, mu_gamma, kl_a, kl_b, n_x, n_y)
 
+    elbo_curr <- elbo_full[[1]]
     elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
 
 
@@ -249,6 +253,11 @@ run_freq_method_ss_forceGammaZero <- function(Gx_t_Gx, Gx_t_x, xtx,
     }
 
     iter <- iter + 1
+
+    if(verbose){
+      print(str_glue("Starting iteration {iter}, elbo = {elbo_curr}"))
+    }
+
   }
 
   #Return a list with the various components
