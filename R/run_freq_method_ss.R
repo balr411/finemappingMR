@@ -96,8 +96,9 @@
 #' @return A list containing various results from the estimation procedure,
 #' including a data frame containing the gamma estimation results, as well as
 #' the posterior first and second moments for b and alpha, the prior non-zero
-#' effect variance estimates, and the PIPs for each non-zero effect, and the
-#' vector of ELBO iterations.
+#' effect variance estimates, and the PIPs for each non-zero effect, the
+#' vector of ELBO iterations, the vector of likelihood components, and the KL
+#' divergence terms for b and alpha.
 #'
 #' @importFrom stats var
 #'
@@ -321,6 +322,10 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
   to_return$elbo <- elbo_conv_vec
   to_return$lik_x <- lik_x
   to_return$lik_y <- lik_y
+
+  #KL-divergence
+  to_return$kl_a <- kl_a
+  to_return$kl_b <- kl_b
 
   #Calculate and return credible sets if desired
   if(calc_cs_x){
