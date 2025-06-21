@@ -88,8 +88,9 @@
 #'
 #' @param verbose Output progress? Default = FALSE.
 #'
-#' @param susie_init SuSiE object to initialize the exposure to. Currently only
-#' works if M = 1. Default = NULL.
+#' @param susie_init A list of SuSiE objects to initialize the exposure to. Default = NULL.
+#'
+#' @param susie_init_y A list of SuSiE objects to initialize the outcome to. Default = NULL.
 #'
 #' @param gamma_init Value to initialize gamma at.
 #'
@@ -125,6 +126,7 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
                                calc_cs_y = FALSE,
                                verbose = FALSE,
                                susie_init = NULL,
+                               susie_init_y = NULL,
                                gamma_init = 0,
                                beta_gamma_alpha = FALSE){
 
@@ -145,22 +147,20 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
   #Initialize all of the estimates
   M <- length(Gx_t_Gx) #Number of loci - should later add some checks that the same amount of regions were given
 
-  #Check if a SuSiE object was given for initialization
+  #Check if a SuSiE object was given for initialization for the exposure
   if(!is.null(susie_init)){
-    if(M != 1){
-      stop("susie_init is currently only implemented for a single region")
-    }
 
-    V_x <- matrix(susie_init$V, nrow = L_x, ncol = 1)
-
+    V_x <- matrix(rep(0, L_x*M), nrow = L_x, ncol = M)
     mu_b <- list()
-    mu_b[[1]] <- susie_init$mu
-
     mu2_b <- list()
-    mu2_b[[1]] <- susie_init$mu2
-
     alpha_b <- list()
-    alpha_b[[1]] <- susie_init$alpha
+
+    for(i in 1:M){
+      V_x[,i] <- susie_init[[i]]$V
+      mu_b[[i]] <- susie_init[[i]]$mu
+      mu2_b[[i]] <- susie_init[[i]]$mu2
+      alpha_b[[i]] <- susie_init[[i]]$alpha
+    }
 
     kl_b <- lapply(Gx_t_Gx, FUN = function(x) rep(0, L_x)) #Note not sure that this would be correct
   }else{
@@ -174,15 +174,35 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
     kl_b <- lapply(Gx_t_Gx, FUN = function(x) rep(0, L_x))
   }
 
-  #Initialize variance estimates
-  V_y_init <- scaled_prior_variance_y * varY
-  V_y <- matrix(rep(V_y_init, L_y*M), nrow = L_y, ncol = M)
 
-  #alpha (a) estimates
-  mu_a <- lapply(Gy_t_Gy, function(x) matrix(0, nrow = L_y, ncol = ncol(x)))
-  mu2_a <- lapply(Gy_t_Gy, function(x) matrix(0, nrow = L_y, ncol = ncol(x)))
-  alpha_a <- lapply(Gy_t_Gy, function(x) matrix(1/ncol(x), nrow = L_y, ncol = ncol(x)))
-  kl_a <- lapply(Gy_t_Gy, FUN = function(x) rep(0, L_y))
+  #Check if a SuSiE object was given for initialization for the exposure
+  if(!is.null(susie_init_y)){
+    V_y <- matrix(rep(0, L_y*M), nrow = L_y, ncol = M)
+    mu_a <- list()
+    mu2_a <- list()
+    alpha_a <- list()
+
+    for(i in 1:M){
+      V_y[,i] <- susie_init_y[[i]]$V
+      mu_a[[i]] <- susie_init_y[[i]]$mu
+      mu2_a[[i]] <- susie_init_y[[i]]$mu2
+      alpha_a[[i]] <- susie_init_y[[i]]$alpha
+    }
+
+    kl_a <- lapply(Gy_t_Gy, FUN = function(x) rep(0, L_y)) #Note not sure that this would be correct
+
+  }else{
+    #Initialize variance estimates
+    V_y_init <- scaled_prior_variance_y * varY
+    V_y <- matrix(rep(V_y_init, L_y*M), nrow = L_y, ncol = M)
+
+    #alpha (a) estimates
+    mu_a <- lapply(Gy_t_Gy, function(x) matrix(0, nrow = L_y, ncol = ncol(x)))
+    mu2_a <- lapply(Gy_t_Gy, function(x) matrix(0, nrow = L_y, ncol = ncol(x)))
+    alpha_a <- lapply(Gy_t_Gy, function(x) matrix(1/ncol(x), nrow = L_y, ncol = ncol(x)))
+    kl_a <- lapply(Gy_t_Gy, FUN = function(x) rep(0, L_y))
+  }
+
 
   #gamma estimate
   sigma2_gamma_curr <- 0
