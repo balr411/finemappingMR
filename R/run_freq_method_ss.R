@@ -376,27 +376,32 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
       lik_x <- c(lik_x, lik_x_curr)
       lik_y <- c(lik_y, lik_y_curr)
 
-      #Now update gamma
-      b_post <- lapply(Map("*", mu_b, alpha_b), colSums)
-      a_post <- lapply(Map("*", mu_a, alpha_a), colSums)
+      #Now update gamma if not fixed
+      if(!is.null(fix_gamma)){
+        sigma2_gamma_curr <- 0
+        mu_gamma <- fix_gamma
+      }else{
+        b_post <- lapply(Map("*", mu_b, alpha_b), colSums)
+        a_post <- lapply(Map("*", mu_a, alpha_a), colSums)
 
-      mu_gamma_num <- (sum(unlist(Map("%*%", b_post, Gy_t_y))) - sum(unlist(Map("%*%", Map("%*%", b_post, Gy_t_Gy), a_post))))
+        mu_gamma_num <- (sum(unlist(Map("%*%", b_post, Gy_t_y))) - sum(unlist(Map("%*%", Map("%*%", b_post, Gy_t_Gy), a_post))))
 
-      vec_den <- vector(length = M)
-      for(m in 1:M){
-        B <- alpha_b[[m]] * mu_b[[m]]
-        XB2 <- sum((B %*% Gy_t_Gy[[m]]) * B)
-        betabar <- colSums(B)
-        d <- attr(Gy_t_Gy[[m]],"d")
-        postb2 <- alpha_b[[m]] * mu2_b[[m]]
-        vec_den[m] <- sum(betabar * (Gy_t_Gy[[m]] %*% betabar)) - XB2 + sum(d * t(postb2))
+        vec_den <- vector(length = M)
+        for(m in 1:M){
+          B <- alpha_b[[m]] * mu_b[[m]]
+          XB2 <- sum((B %*% Gy_t_Gy[[m]]) * B)
+          betabar <- colSums(B)
+          d <- attr(Gy_t_Gy[[m]],"d")
+          postb2 <- alpha_b[[m]] * mu2_b[[m]]
+          vec_den[m] <- sum(betabar * (Gy_t_Gy[[m]] %*% betabar)) - XB2 + sum(d * t(postb2))
+        }
+
+        mu_gamma_den <- (sum(vec_den))
+
+        mu_gamma <- as.numeric(mu_gamma_num/mu_gamma_den)
+
+        sigma2_gamma_curr <- as.numeric((sigma2_y)/mu_gamma_den)
       }
-
-      mu_gamma_den <- (sum(vec_den))
-
-      mu_gamma <- as.numeric(mu_gamma_num/mu_gamma_den)
-
-      sigma2_gamma_curr <- as.numeric((sigma2_y)/mu_gamma_den)
 
       #Update alpha
       for(m in 1:M){
