@@ -97,6 +97,8 @@
 #' @param beta_gamma_alpha Change the order of estimation from alpha - beta - gamma
 #' to beta - gamma - alpha? Default = FALSE.
 #'
+#' @param fix_gamma Fix gamma to the given value and don't estimate. Default = NULL.
+#'
 #' @return A list containing various results from the estimation procedure,
 #' including a data frame containing the gamma estimation results, as well as
 #' the posterior first and second moments for b and alpha, the prior non-zero
@@ -128,7 +130,8 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
                                susie_init = NULL,
                                susie_init_y = NULL,
                                gamma_init = 0,
-                               beta_gamma_alpha = FALSE){
+                               beta_gamma_alpha = FALSE,
+                               fix_gamma = NULL){
 
   varX <- xtx/(n_x - 1) #Note need to think about changing this to add functionality for using summary statistics where xtx/yty are unknown
   varY <- yty/(n_y - 1)
@@ -205,8 +208,14 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
 
   #gamma estimate
-  sigma2_gamma_curr <- 0
-  mu_gamma <- gamma_init
+  if(!is.null(fix_gamma)){
+    sigma2_gamma_curr <- 0
+    mu_gamma <- fix_gamma
+  }else{
+    sigma2_gamma_curr <- 0
+    mu_gamma <- gamma_init
+  }
+
 
   elbo_conv_vec <- c()
   lik_x <- c()
@@ -285,27 +294,32 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
       lik_y <- c(lik_y, lik_y_curr)
 
 
-      #Now update gamma
-      b_post <- lapply(Map("*", mu_b, alpha_b), colSums)
-      a_post <- lapply(Map("*", mu_a, alpha_a), colSums)
+      #Now update gamma if not fixed
+      if(!is.null(fix_gamma)){
+        sigma2_gamma_curr <- 0
+        mu_gamma <- fix_gamma
+      }else{
+        b_post <- lapply(Map("*", mu_b, alpha_b), colSums)
+        a_post <- lapply(Map("*", mu_a, alpha_a), colSums)
 
-      mu_gamma_num <- (sum(unlist(Map("%*%", b_post, Gy_t_y))) - sum(unlist(Map("%*%", Map("%*%", b_post, Gy_t_Gy), a_post))))
+        mu_gamma_num <- (sum(unlist(Map("%*%", b_post, Gy_t_y))) - sum(unlist(Map("%*%", Map("%*%", b_post, Gy_t_Gy), a_post))))
 
-      vec_den <- vector(length = M)
-      for(m in 1:M){
-        B <- alpha_b[[m]] * mu_b[[m]]
-        XB2 <- sum((B %*% Gy_t_Gy[[m]]) * B)
-        betabar <- colSums(B)
-        d <- attr(Gy_t_Gy[[m]],"d")
-        postb2 <- alpha_b[[m]] * mu2_b[[m]]
-        vec_den[m] <- sum(betabar * (Gy_t_Gy[[m]] %*% betabar)) - XB2 + sum(d * t(postb2))
+        vec_den <- vector(length = M)
+        for(m in 1:M){
+          B <- alpha_b[[m]] * mu_b[[m]]
+          XB2 <- sum((B %*% Gy_t_Gy[[m]]) * B)
+          betabar <- colSums(B)
+          d <- attr(Gy_t_Gy[[m]],"d")
+          postb2 <- alpha_b[[m]] * mu2_b[[m]]
+          vec_den[m] <- sum(betabar * (Gy_t_Gy[[m]] %*% betabar)) - XB2 + sum(d * t(postb2))
+        }
+
+        mu_gamma_den <- (sum(vec_den))
+
+        mu_gamma <- as.numeric(mu_gamma_num/mu_gamma_den)
+
+        sigma2_gamma_curr <- as.numeric((sigma2_y)/mu_gamma_den)
       }
-
-      mu_gamma_den <- (sum(vec_den))
-
-      mu_gamma <- as.numeric(mu_gamma_num/mu_gamma_den)
-
-      sigma2_gamma_curr <- as.numeric((sigma2_y)/mu_gamma_den)
 
 
       if(iter > 1){
