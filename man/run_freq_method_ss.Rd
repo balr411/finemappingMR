@@ -26,7 +26,13 @@ run_freq_method_ss(
   tol = 1e-04,
   max_iter = 1000,
   calc_cs_x = FALSE,
-  calc_cs_y = FALSE
+  calc_cs_y = FALSE,
+  verbose = FALSE,
+  susie_init = NULL,
+  susie_init_y = NULL,
+  gamma_init = 0,
+  beta_gamma_alpha = FALSE,
+  fix_gamma = NULL
 )
 }
 \arguments{
@@ -112,13 +118,27 @@ less than \code{tol}.}
 \item{calc_cs_x}{Calculate credible sets for the exposure? Default = FALSE.}
 
 \item{calc_cs_y}{Calculate credible sets for the outcome? Default = FALSE.}
+
+\item{verbose}{Output progress? Default = FALSE.}
+
+\item{susie_init}{A list of SuSiE objects to initialize the exposure to. Default = NULL.}
+
+\item{susie_init_y}{A list of SuSiE objects to initialize the outcome to. Default = NULL.}
+
+\item{gamma_init}{Value to initialize gamma at.}
+
+\item{beta_gamma_alpha}{Change the order of estimation from alpha - beta - gamma
+to beta - gamma - alpha? Default = FALSE.}
+
+\item{fix_gamma}{Fix gamma to the given value and don't estimate. Default = NULL.}
 }
 \value{
 A list containing various results from the estimation procedure,
 including a data frame containing the gamma estimation results, as well as
 the posterior first and second moments for b and alpha, the prior non-zero
-effect variance estimates, and the PIPs for each non-zero effect, and the
-vector of ELBO iterations.
+effect variance estimates, and the PIPs for each non-zero effect, the
+vector of ELBO iterations, the vector of likelihood components, and the KL
+divergence terms for b and alpha.
 }
 \description{
 Function that performs our frequentist MR estimation method using

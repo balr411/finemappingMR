@@ -24,7 +24,10 @@ run_freq_method_ss_dev(
   estimate_residual_variance_x = FALSE,
   estimate_residual_variance_y = FALSE,
   tol = 1e-04,
-  max_iter = 1000
+  max_iter = 1000,
+  calc_cs_x = FALSE,
+  calc_cs_y = FALSE,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -106,6 +109,12 @@ will halt when the difference in the variational lower bound, or
 less than \code{tol}.}
 
 \item{max_iter}{Maximum number of iterations before stopping estimation procedure.}
+
+\item{calc_cs_x}{Calculate credible sets for the exposure? Default = FALSE.}
+
+\item{calc_cs_y}{Calculate credible sets for the outcome? Default = FALSE.}
+
+\item{verbose}{Output progress? Default = FALSE.}
 }
 \value{
 A list containing various results from the estimation procedure,
