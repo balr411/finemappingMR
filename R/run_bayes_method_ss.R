@@ -1,6 +1,6 @@
-#' @title Frequentist MR estimate using sufficient statistics for exposure and outcome.
+#' @title Bayesian MR estimate using sufficient statistics for exposure and outcome.
 #'
-#' @description Function that performs our frequentist MR estimation method using
+#' @description Function that performs our Bayesian MR estimation method using
 #' sufficient statistics for exposure and outcome.
 #'
 #' @param Gx_t_Gx A list of matrices \eqn{G_x'G_x} in which the columns of \eqn{G_x}
@@ -92,12 +92,20 @@
 #'
 #' @param susie_init_y A list of SuSiE objects to initialize the outcome to. Default = NULL.
 #'
-#' @param gamma_init Value to initialize gamma at.
+#' @param mu_gamma_init Value to initialize the posterior mean of gamma to.
+#'  Default = 0.
+#'
+#' @param mu2_gamma_init Value to initialize the posterior second moment of gamma
+#'  to. Default = 0.
+#'
+#' @param sigma2_gamma_prior Prior variance of gamma to use. Default = 10^6.
+#'
+#' @param num_samples Number of samples to use in the Monte Carlo sampling for
+#'  the variance. Default = 1,000.
 #'
 #' @param beta_gamma_alpha Change the order of estimation from alpha - beta - gamma
 #' to beta - gamma - alpha? Default = FALSE.
 #'
-#' @param fix_gamma Fix gamma to the given value and don't estimate. Default = NULL.
 #'
 #' @return A list containing various results from the estimation procedure,
 #' including a data frame containing the gamma estimation results, as well as
@@ -110,28 +118,32 @@
 #'
 #' @export
 
-run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
-                               Gy_t_Gy, Gy_t_y, yty,
-                               n_x, n_y,
-                               L_x = 10, L_y = 10,
-                               scaled_prior_variance_x = 0.2,
-                               scaled_prior_variance_y = 0.2,
-                               estimate_prior_variance_x = TRUE,
-                               estimate_prior_variance_y = TRUE,
-                               residual_variance_x = NULL,
-                               residual_variance_y = NULL,
-                               estimate_residual_variance_x = FALSE,
-                               estimate_residual_variance_y = FALSE,
-                               tol = 1e-4,
-                               max_iter = 1000,
-                               calc_cs_x = FALSE,
-                               calc_cs_y = FALSE,
-                               verbose = FALSE,
-                               susie_init = NULL,
-                               susie_init_y = NULL,
-                               gamma_init = 0,
-                               beta_gamma_alpha = FALSE,
-                               fix_gamma = NULL){
+run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
+                                Gy_t_Gy, Gy_t_y, yty,
+                                n_x, n_y,
+                                L_x = 10, L_y = 10,
+                                scaled_prior_variance_x = 0.2,
+                                scaled_prior_variance_y = 0.2,
+                                estimate_prior_variance_x = TRUE,
+                                estimate_prior_variance_y = TRUE,
+                                residual_variance_x = NULL,
+                                residual_variance_y = NULL,
+                                estimate_residual_variance_x = FALSE,
+                                estimate_residual_variance_y = FALSE,
+                                tol = 1e-4,
+                                max_iter = 1000,
+                                calc_cs_x = FALSE,
+                                calc_cs_y = FALSE,
+                                verbose = FALSE,
+                                susie_init = NULL,
+                                susie_init_y = NULL,
+                                gamma_init = 0,
+                                mu2_gamma_init = 0,
+                                sigma2_gamma_prior = 10^6,
+                                num_samples = 1000,
+                                beta_gamma_alpha = FALSE){
+
+
 
   varX <- xtx/(n_x - 1) #Note need to think about changing this to add functionality for using summary statistics where xtx/yty are unknown
   varY <- yty/(n_y - 1)
@@ -150,71 +162,26 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
   #Initialize all of the estimates
   M <- length(Gx_t_Gx) #Number of loci - should later add some checks that the same amount of regions were given
 
-  #Check if a SuSiE object was given for initialization for the exposure
-  if(!is.null(susie_init)){
+  est_init <- fmr_init(M, L_x, L_y, susie_init, susie_init_y,
+                       scaled_prior_variance_x, scaled_prior_variance_y, varX,
+                       varY, Gx_t_Gx, Gy_t_Gy, mu_gamma_init, mu2_gamma_init)
 
-    V_x <- matrix(rep(0, L_x*M), nrow = L_x, ncol = M)
-    mu_b <- list()
-    mu2_b <- list()
-    alpha_b <- list()
+  V_x <- est_init$V_x
+  mu_b <- est_init$mu_b
+  mu2_b <- est_init$mu2_b
+  alpha_b <- est_init$alpha_b
+  kl_b <- est_init$kl_b
 
-    for(i in 1:M){
-      V_x[,i] <- susie_init[[i]]$V
-      mu_b[[i]] <- susie_init[[i]]$mu
-      mu2_b[[i]] <- susie_init[[i]]$mu2
-      alpha_b[[i]] <- susie_init[[i]]$alpha
-    }
+  V_y <- est_init$V_y
+  mu_a <- est_init$mu_a
+  mu2_a <- est_init$mu2_a
+  alpha_a <- est_init$alpha_a
+  kl_a <- est_init$kl_a
 
-    kl_b <- lapply(Gx_t_Gx, FUN = function(x) rep(0, L_x)) #Note not sure that this would be correct
-  }else{
-    V_x_init <- scaled_prior_variance_x * varX
-    V_x <- matrix(rep(V_x_init, L_x*M), nrow = L_x, ncol = M)
-
-    #b estimates
-    mu_b <- lapply(Gx_t_Gx, function(x) matrix(0, nrow = L_x, ncol = ncol(x)))
-    mu2_b <- lapply(Gx_t_Gx, function(x) matrix(0, nrow = L_x, ncol = ncol(x)))
-    alpha_b <- lapply(Gx_t_Gx, function(x) matrix(1/ncol(x), nrow = L_x, ncol = ncol(x)))
-    kl_b <- lapply(Gx_t_Gx, FUN = function(x) rep(0, L_x))
-  }
-
-
-  #Check if a SuSiE object was given for initialization for the outcome
-  if(!is.null(susie_init_y)){
-    V_y <- matrix(rep(0, L_y*M), nrow = L_y, ncol = M)
-    mu_a <- list()
-    mu2_a <- list()
-    alpha_a <- list()
-
-    for(i in 1:M){
-      V_y[,i] <- susie_init_y[[i]]$V
-      mu_a[[i]] <- susie_init_y[[i]]$mu
-      mu2_a[[i]] <- susie_init_y[[i]]$mu2
-      alpha_a[[i]] <- susie_init_y[[i]]$alpha
-    }
-
-    kl_a <- lapply(Gy_t_Gy, FUN = function(x) rep(0, L_y)) #Note not sure that this would be correct
-
-  }else{
-    #Initialize variance estimates
-    V_y_init <- scaled_prior_variance_y * varY
-    V_y <- matrix(rep(V_y_init, L_y*M), nrow = L_y, ncol = M)
-
-    #alpha (a) estimates
-    mu_a <- lapply(Gy_t_Gy, function(x) matrix(0, nrow = L_y, ncol = ncol(x)))
-    mu2_a <- lapply(Gy_t_Gy, function(x) matrix(0, nrow = L_y, ncol = ncol(x)))
-    alpha_a <- lapply(Gy_t_Gy, function(x) matrix(1/ncol(x), nrow = L_y, ncol = ncol(x)))
-    kl_a <- lapply(Gy_t_Gy, FUN = function(x) rep(0, L_y))
-  }
-
-
-  #gamma estimate
-  if(!is.null(fix_gamma)){
-    sigma2_gamma_curr <- 0
-    mu_gamma <- fix_gamma
-  }else{
-    sigma2_gamma_curr <- 0
-    mu_gamma <- gamma_init
-  }
+  mu_gamma <- est_init$mu_gamma
+  mu2_gamma <- est_init$mu2_gamma
+  sigma2_gamma_curr <- est_init$sigma2_gamma_curr
+  kl_gamma <- est_init$kl_gamma
 
   elbo_conv_vec <- c()
   lik_x <- c()
@@ -259,13 +226,12 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
       for(m in 1:M){
         for(l in 1:L_x){
           #Get GtG
-          Gstar_t_Gstar <- (1/sigma2_x)*Gx_t_Gx[[m]] + (mu_gamma^2/sigma2_y)*Gy_t_Gy[[m]]
+          Gstar_t_Gstar <- (1/sigma2_x)*Gx_t_Gx[[m]] + (mu2_gamma/sigma2_y)*Gy_t_Gy[[m]]
           csd = rep(1, length = ncol(Gx_t_Gx[[m]]))
           attr(Gstar_t_Gstar, "d") = diag(Gstar_t_Gstar)
           attr(Gstar_t_Gstar, "scaled:scale") = rep(1, length = nrow(Gstar_t_Gstar))
 
-
-          Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,]))) + (mu_gamma/sigma2_y)*(Gy_t_y[[m]] - Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])))
+          Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,]))) + (1/sigma2_y)*(mu_gamma*Gy_t_y[[m]] - mu_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu2_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])))
 
           test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(Gstar_t_R), attr(Gstar_t_Gstar,"d"), V_x[l, m], residual_variance = 1, optimize_V = "optim")
 
@@ -279,10 +245,35 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
         }
       }
 
+      #Now update gamma
+      b_post <- lapply(Map("*", mu_b, alpha_b), colSums)
+      a_post <- lapply(Map("*", mu_a, alpha_a), colSums)
 
-      #Update the ELBO now because the previous estimate of gamma was used in kl(a), kl(b)
-      elbo_full <- freq_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
-                                alpha_a, mu_a, mu2_a, mu_gamma, kl_a, kl_b, n_x, n_y)
+      mu_gamma_num <- sigma2_gamma_prior*(sum(unlist(Map("%*%", b_post, Gy_t_y))) - sum(unlist(Map("%*%", Map("%*%", b_post, Gy_t_Gy), a_post))))
+
+      vec_den <- vector(length = M)
+      for(m in 1:M){
+        B <- alpha_b[[m]] * mu_b[[m]]
+        XB2 <- sum((B %*% Gy_t_Gy[[m]]) * B)
+        betabar <- colSums(B)
+        d <- attr(Gy_t_Gy[[m]],"d")
+        postb2 <- alpha_b[[m]] * mu2_b[[m]]
+        vec_den[m] <- sum(betabar * (Gy_t_Gy[[m]] %*% betabar)) - XB2 + sum(d * t(postb2))
+      }
+
+      mu_gamma_den <- sigma2_y + sigma2_gamma_prior*(sum(vec_den))
+
+      mu_gamma <- as.numeric(mu_gamma_num/mu_gamma_den)
+
+      sigma2_gamma_curr <- as.numeric((sigma2_gamma_prior*sigma2_y)/mu_gamma_den)
+
+      mu2_gamma <- as.numeric(mu_gamma^2 + sigma2_gamma_curr)
+
+      #Get KL-divergence of gamma (taken from https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians):
+      kl_gamma <- (1/2) - log(sqrt(sigma2_gamma_prior/sigma2_gamma_curr)) - (sigma2_gamma_curr + mu_gamma^2)/(2*sigma2_gamma_prior) #Should always be <0 (its negative kl divergence)
+
+      elbo_full <- bayes_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
+                                 alpha_a, mu_a, mu2_a, mu_gamma, mu2_gamma, kl_a, kl_b, kl_gamma, n_x, n_y)
 
       elbo_curr <- elbo_full[[1]]
       lik_y_curr <- elbo_full[[2]]
@@ -291,34 +282,6 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
       elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
       lik_x <- c(lik_x, lik_x_curr)
       lik_y <- c(lik_y, lik_y_curr)
-
-
-      #Now update gamma if not fixed
-      if(!is.null(fix_gamma)){
-        sigma2_gamma_curr <- 0
-        mu_gamma <- fix_gamma
-      }else{
-        b_post <- lapply(Map("*", mu_b, alpha_b), colSums)
-        a_post <- lapply(Map("*", mu_a, alpha_a), colSums)
-
-        mu_gamma_num <- (sum(unlist(Map("%*%", b_post, Gy_t_y))) - sum(unlist(Map("%*%", Map("%*%", b_post, Gy_t_Gy), a_post))))
-
-        vec_den <- vector(length = M)
-        for(m in 1:M){
-          B <- alpha_b[[m]] * mu_b[[m]]
-          XB2 <- sum((B %*% Gy_t_Gy[[m]]) * B)
-          betabar <- colSums(B)
-          d <- attr(Gy_t_Gy[[m]],"d")
-          postb2 <- alpha_b[[m]] * mu2_b[[m]]
-          vec_den[m] <- sum(betabar * (Gy_t_Gy[[m]] %*% betabar)) - XB2 + sum(d * t(postb2))
-        }
-
-        mu_gamma_den <- (sum(vec_den))
-
-        mu_gamma <- as.numeric(mu_gamma_num/mu_gamma_den)
-
-        sigma2_gamma_curr <- as.numeric((sigma2_y)/mu_gamma_den)
-      }
 
 
       if(iter > 1){
@@ -341,13 +304,12 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
       for(m in 1:M){
         for(l in 1:L_x){
           #Get GtG
-          Gstar_t_Gstar <- (1/sigma2_x)*Gx_t_Gx[[m]] + (mu_gamma^2/sigma2_y)*Gy_t_Gy[[m]]
+          Gstar_t_Gstar <- (1/sigma2_x)*Gx_t_Gx[[m]] + (mu2_gamma/sigma2_y)*Gy_t_Gy[[m]]
           csd = rep(1, length = ncol(Gx_t_Gx[[m]]))
           attr(Gstar_t_Gstar, "d") = diag(Gstar_t_Gstar)
           attr(Gstar_t_Gstar, "scaled:scale") = rep(1, length = nrow(Gstar_t_Gstar))
 
-
-          Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,]))) + (mu_gamma/sigma2_y)*(Gy_t_y[[m]] - Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])))
+          Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,]))) + (1/sigma2_y)*(mu_gamma*Gy_t_y[[m]] - mu_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu2_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])))
 
           test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(Gstar_t_R), attr(Gstar_t_Gstar,"d"), V_x[l, m], residual_variance = 1, optimize_V = "optim")
 
@@ -361,46 +323,32 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
         }
       }
 
-      #Update the ELBO now because the previous estimate of gamma was used in kl(b)
-      #Note that this might have implications on the convergence criteria so
-      #check this
-      elbo_full <- freq_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
-                                alpha_a, mu_a, mu2_a, mu_gamma, kl_a, kl_b, n_x, n_y)
+      #Now update gamma
+      b_post <- lapply(Map("*", mu_b, alpha_b), colSums)
+      a_post <- lapply(Map("*", mu_a, alpha_a), colSums)
 
-      elbo_curr <- elbo_full[[1]]
-      lik_y_curr <- elbo_full[[2]]
-      lik_x_curr <- elbo_full[[3]]
+      mu_gamma_num <- sigma2_gamma_prior*(sum(unlist(Map("%*%", b_post, Gy_t_y))) - sum(unlist(Map("%*%", Map("%*%", b_post, Gy_t_Gy), a_post))))
 
-      elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
-      lik_x <- c(lik_x, lik_x_curr)
-      lik_y <- c(lik_y, lik_y_curr)
-
-      #Now update gamma if not fixed
-      if(!is.null(fix_gamma)){
-        sigma2_gamma_curr <- 0
-        mu_gamma <- fix_gamma
-      }else{
-        b_post <- lapply(Map("*", mu_b, alpha_b), colSums)
-        a_post <- lapply(Map("*", mu_a, alpha_a), colSums)
-
-        mu_gamma_num <- (sum(unlist(Map("%*%", b_post, Gy_t_y))) - sum(unlist(Map("%*%", Map("%*%", b_post, Gy_t_Gy), a_post))))
-
-        vec_den <- vector(length = M)
-        for(m in 1:M){
-          B <- alpha_b[[m]] * mu_b[[m]]
-          XB2 <- sum((B %*% Gy_t_Gy[[m]]) * B)
-          betabar <- colSums(B)
-          d <- attr(Gy_t_Gy[[m]],"d")
-          postb2 <- alpha_b[[m]] * mu2_b[[m]]
-          vec_den[m] <- sum(betabar * (Gy_t_Gy[[m]] %*% betabar)) - XB2 + sum(d * t(postb2))
-        }
-
-        mu_gamma_den <- (sum(vec_den))
-
-        mu_gamma <- as.numeric(mu_gamma_num/mu_gamma_den)
-
-        sigma2_gamma_curr <- as.numeric((sigma2_y)/mu_gamma_den)
+      vec_den <- vector(length = M)
+      for(m in 1:M){
+        B <- alpha_b[[m]] * mu_b[[m]]
+        XB2 <- sum((B %*% Gy_t_Gy[[m]]) * B)
+        betabar <- colSums(B)
+        d <- attr(Gy_t_Gy[[m]],"d")
+        postb2 <- alpha_b[[m]] * mu2_b[[m]]
+        vec_den[m] <- sum(betabar * (Gy_t_Gy[[m]] %*% betabar)) - XB2 + sum(d * t(postb2))
       }
+
+      mu_gamma_den <- sigma2_y + sigma2_gamma_prior*(sum(vec_den))
+
+      mu_gamma <- as.numeric(mu_gamma_num/mu_gamma_den)
+
+      sigma2_gamma_curr <- as.numeric((sigma2_gamma_prior*sigma2_y)/mu_gamma_den)
+
+      mu2_gamma <- as.numeric(mu_gamma^2 + sigma2_gamma_curr)
+
+      #Get KL-divergence of gamma (taken from https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians):
+      kl_gamma <- (1/2) - log(sqrt(sigma2_gamma_prior/sigma2_gamma_curr)) - (sigma2_gamma_curr + mu_gamma^2)/(2*sigma2_gamma_prior) #Should always be <0 (its negative kl divergence)
 
       #Update alpha
       for(m in 1:M){
@@ -421,6 +369,17 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
         }
       }
 
+      elbo_full <- bayes_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
+                                 alpha_a, mu_a, mu2_a, mu_gamma, mu2_gamma, kl_a, kl_b, kl_gamma, n_x, n_y)
+
+      elbo_curr <- elbo_full[[1]]
+      lik_y_curr <- elbo_full[[2]]
+      lik_x_curr <- elbo_full[[3]]
+
+      elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
+      lik_x <- c(lik_x, lik_x_curr)
+      lik_y <- c(lik_y, lik_y_curr)
+
 
       if(iter > 1){
         conv <- abs(elbo_conv_vec[iter] - elbo_conv_vec[iter-1]) < 1e-4
@@ -435,8 +394,12 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
       }
 
     }
-
   }
+
+  #Calculate the variance using the law of total variance
+  total_var <- bayes_total_var(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a,
+                               alpha_a, Gy_t_Gy, Gy_t_y, num_samples)
+
 
   #Return a list with the various components
   to_return <- list()
@@ -444,6 +407,7 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
   #Gamma estimation
   to_return$res <- data.frame(gamma = mu_gamma,
                               gamma_var = sigma2_gamma_curr,
+                              gamma_total_var = total_var,
                               iter = iter)
 
   #b estimation
@@ -477,12 +441,9 @@ run_freq_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
   }
 
   return(to_return)
+
+
 }
-
-
-
-
-
 
 
 
