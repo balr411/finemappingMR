@@ -3,7 +3,7 @@
 #' @keywords internal
 
 bayes_total_var <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a, alpha_a,
-                            Gy_t_Gy, Gy_t_y, num_samples){
+                            Gy_t_Gy, Gy_t_y, num_samples, sigma2_y){
 
   M <- length(mu_b)
 

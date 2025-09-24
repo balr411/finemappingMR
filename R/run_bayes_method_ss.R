@@ -398,7 +398,7 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
   #Calculate the variance using the law of total variance
   total_var <- bayes_total_var(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a,
-                               alpha_a, Gy_t_Gy, Gy_t_y, num_samples)
+                               alpha_a, Gy_t_Gy, Gy_t_y, num_samples, sigma2_y)
 
 
   #Return a list with the various components
