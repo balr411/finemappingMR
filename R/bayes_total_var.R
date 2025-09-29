@@ -25,7 +25,13 @@ bayes_total_var <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a, alpha_a
 
     for(m in 1:M){
       idx_b_keep <- idx_b_keep_full[[m]]
-      idx_a_keep <- idx_a_keep_full[[m]]
+
+      if(length(idx_a_keep_full) > 0){
+        idx_a_keep <- idx_a_keep_full[[m]]
+      }else{
+        idx_a_keep <- integer(0)
+      }
+
 
       if(length(idx_b_keep) > 0){
         N_col <- ncol(mu_b[[m]])
