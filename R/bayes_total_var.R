@@ -78,7 +78,7 @@ bayes_total_var <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a, alpha_a
         }
         a_full[[m]] <- as.matrix(colSums(a_curr))
       }else{
-        a_full[[m]] <- as.matrix(rep(0, N_col))
+        a_full[[m]] <- as.matrix(rep(0, ncol(mu_a[[m]])))
       }
     }
 
