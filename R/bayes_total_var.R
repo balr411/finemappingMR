@@ -24,7 +24,12 @@ bayes_total_var <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a, alpha_a
     a_full <- list()
 
     for(m in 1:M){
-      idx_b_keep <- idx_b_keep_full[[m]]
+
+      if(length(idx_b_keep) > 0){
+        idx_b_keep <- idx_b_keep_full[[m]]
+      }else{
+        idx_b_keep <- integer(0)
+      }
 
       if(length(idx_a_keep_full) > 0){
         idx_a_keep <- idx_a_keep_full[[m]]
