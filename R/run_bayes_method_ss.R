@@ -402,6 +402,11 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
     #This is the case where we don't estimate pleiotropy. Let us keep it as a fixed
     #value (i.e. 0) for now and not update it, since this should be equivalent to setting it to 0
 
+    #I will also set all prior variance estimates to 0 so that the total variance
+    #calculation will work
+    V_y_init <- 0
+    V_y <- matrix(rep(V_y_init, L_y*M), nrow = L_y, ncol = M)
+
     #Update b first
     for(m in 1:M){
       for(l in 1:L_x){
