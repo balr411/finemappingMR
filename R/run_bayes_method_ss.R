@@ -106,6 +106,9 @@
 #' @param beta_gamma_alpha Change the order of estimation from alpha - beta - gamma
 #' to beta - gamma - alpha? Default = FALSE.
 #'
+#' @param include_pleiotropy Include a pleiotropy term in the estimation of gamma?
+#' Default = TRUE.
+#'
 #'
 #' @return A list containing various results from the estimation procedure,
 #' including a data frame containing the gamma estimation results, as well as
@@ -141,7 +144,8 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
                                 mu2_gamma_init = 0,
                                 sigma2_gamma_prior = 10^6,
                                 num_samples = 1000,
-                                beta_gamma_alpha = FALSE){
+                                beta_gamma_alpha = FALSE,
+                                include_pleiotropy = TRUE){
 
 
 
@@ -201,7 +205,7 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
   conv <- FALSE
   iter <- 1
 
-  if(!beta_gamma_alpha){
+  if(!beta_gamma_alpha & include_pleiotropy){
     while(!conv & iter < max_iter){
       #Update alpha first
       for(m in 1:M){
@@ -298,7 +302,7 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
     }
 
-  }else{
+  }else if(beta_gamma_alpha & include_pleiotropy){
     while(!conv & iter < max_iter){
       #Update b first
       for(m in 1:M){
@@ -394,6 +398,84 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
       }
 
     }
+  }else{
+    #This is the case where we don't estimate pleiotropy. Let us keep it as a fixed
+    #value (i.e. 0) for now and not update it, since this should be equivalent to setting it to 0
+
+    #Update b first
+    for(m in 1:M){
+      for(l in 1:L_x){
+        #Get GtG
+        Gstar_t_Gstar <- (1/sigma2_x)*Gx_t_Gx[[m]] + (mu2_gamma/sigma2_y)*Gy_t_Gy[[m]]
+        csd = rep(1, length = ncol(Gx_t_Gx[[m]]))
+        attr(Gstar_t_Gstar, "d") = diag(Gstar_t_Gstar)
+        attr(Gstar_t_Gstar, "scaled:scale") = rep(1, length = nrow(Gstar_t_Gstar))
+
+        Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,]))) + (1/sigma2_y)*(mu_gamma*Gy_t_y[[m]] - mu_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu2_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])))
+
+        test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(Gstar_t_R), attr(Gstar_t_Gstar,"d"), V_x[l, m], residual_variance = 1, optimize_V = "optim")
+
+        mu_b[[m]][l,] <- test_curr_ss$mu
+        mu2_b[[m]][l,] <- test_curr_ss$mu2
+        alpha_b[[m]][l,] <- test_curr_ss$alpha
+        V_x[l,m] <- test_curr_ss$V
+        kl_b[[m]][l] <- -test_curr_ss$lbf_model +
+          susieR:::SER_posterior_e_loglik_ss(attr(Gstar_t_Gstar,"d"), Gstar_t_R, 1, test_curr_ss$alpha * test_curr_ss$mu,
+                                             test_curr_ss$alpha * test_curr_ss$mu2)
+      }
+    }
+
+    #Now update gamma
+    b_post <- lapply(Map("*", mu_b, alpha_b), colSums)
+    a_post <- lapply(Map("*", mu_a, alpha_a), colSums)
+
+    mu_gamma_num <- sigma2_gamma_prior*(sum(unlist(Map("%*%", b_post, Gy_t_y))) - sum(unlist(Map("%*%", Map("%*%", b_post, Gy_t_Gy), a_post))))
+
+    vec_den <- vector(length = M)
+    for(m in 1:M){
+      B <- alpha_b[[m]] * mu_b[[m]]
+      XB2 <- sum((B %*% Gy_t_Gy[[m]]) * B)
+      betabar <- colSums(B)
+      d <- attr(Gy_t_Gy[[m]],"d")
+      postb2 <- alpha_b[[m]] * mu2_b[[m]]
+      vec_den[m] <- sum(betabar * (Gy_t_Gy[[m]] %*% betabar)) - XB2 + sum(d * t(postb2))
+    }
+
+    mu_gamma_den <- sigma2_y + sigma2_gamma_prior*(sum(vec_den))
+
+    mu_gamma <- as.numeric(mu_gamma_num/mu_gamma_den)
+
+    sigma2_gamma_curr <- as.numeric((sigma2_gamma_prior*sigma2_y)/mu_gamma_den)
+
+    mu2_gamma <- as.numeric(mu_gamma^2 + sigma2_gamma_curr)
+
+    #Get KL-divergence of gamma (taken from https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians):
+    kl_gamma <- (1/2) - log(sqrt(sigma2_gamma_prior/sigma2_gamma_curr)) - (sigma2_gamma_curr + mu_gamma^2)/(2*sigma2_gamma_prior) #Should always be <0 (its negative kl divergence)
+
+    elbo_full <- bayes_elbo_ss(sigma2_y, sigma2_x, Gx_t_Gx, Gy_t_Gy, Gx_t_x, Gy_t_y, alpha_b, mu_b, mu2_b,
+                               alpha_a, mu_a, mu2_a, mu_gamma, mu2_gamma, kl_a, kl_b, kl_gamma, n_x, n_y)
+
+    elbo_curr <- elbo_full[[1]]
+    lik_y_curr <- elbo_full[[2]]
+    lik_x_curr <- elbo_full[[3]]
+
+    elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
+    lik_x <- c(lik_x, lik_x_curr)
+    lik_y <- c(lik_y, lik_y_curr)
+
+
+    if(iter > 1){
+      conv <- abs(elbo_conv_vec[iter] - elbo_conv_vec[iter-1]) < 1e-4
+    }else{
+      conv <- FALSE
+    }
+
+    iter <- iter + 1
+
+    if(verbose){
+      print(str_glue("Starting iteration {iter}, gamma_curr = {mu_gamma}"))
+    }
+
   }
 
   #Calculate the variance using the law of total variance
