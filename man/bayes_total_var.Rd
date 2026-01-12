@@ -15,7 +15,9 @@ bayes_total_var(
   alpha_a,
   Gy_t_Gy,
   Gy_t_y,
-  num_samples
+  num_samples,
+  sigma2_y,
+  sigma2_gamma_prior
 )
 }
 \description{

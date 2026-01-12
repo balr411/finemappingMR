@@ -1,13 +1,17 @@
-#' @title Bayesian MR estimate using summary statistics for exposure and outcome.
+#' @title Bayesian MR estimate using summary statistics for exposure and outcome
+#'  using Z-scores instead of sufficient statistics.
 #'
 #' @description Function that performs our Bayesian MR estimation method using
 #' summary statistics for exposure and outcome.
 #'
-#' @param Z_x A vector of Z-scores for the exposure X
+#' @param Z_x A vector of Z-scores for the exposure X, assuming centered and
+#'  standardized G and x.
 #'
-#' @param Z_y A vector of Z-scores for the outcome y
+#' @param Z_y A vector of Z-scores for the outcome y, assuming centered and
+#'  standardized G and y.
 #'
-#' @param R A correlation matrix for the Z-scores
+#' @param R A correlation matrix for the Z-scores. Assume it is the same for
+#'  exposure and outcome studies
 #'
 #' @param L_x Maximum number of non-zero effects for the exposure.
 #'
@@ -51,10 +55,10 @@
 #'   no functionality.
 #'
 #' @param residual_variance_x The variance of the exposure residual. If \code{estimate_residual_variance_x = TRUE},
-#' this is used as an initial value.
+#' this is used as an initial value. This is fixed to 1 for the Z-score implementation.
 #'
 #' @param residual_variance_y The variance of the outcome residual. If \code{estimate_residual_variance_y = TRUE},
-#' this is used as an initial value.
+#' this is used as an initial value. This is fixed to 1 for the Z-score implementation.
 #'
 #' @param estimate_residual_variance_x If \code{TRUE}, exposure residual variance is estimated
 #' using initial value \code{residual_variance_x}. Currently has
@@ -68,7 +72,8 @@
 #'   tolerance for the variational Bayes procedure. The fitting procedure
 #'   will halt when the difference in the variational lower bound, or
 #'   \dQuote{ELBO} (the objective function to be maximized), is
-#'   less than \code{tol}.
+#'   less than \code{tol}. Currently we do not use the ELBO to check convergence
+#'   but rather check the changes in the parameters
 #'
 #' @param max_iter Maximum number of iterations before stopping estimation procedure.
 #'
@@ -94,10 +99,10 @@
 #'  the variance. Default = 1,000.
 #'
 #' @param beta_gamma_alpha Change the order of estimation from alpha - beta - gamma
-#' to beta - gamma - alpha? Default = FALSE.
+#' to beta - gamma - alpha? Default = FALSE. Currently no functionality.
 #'
 #' @param include_pleiotropy Include a pleiotropy term in the estimation of gamma?
-#' Default = TRUE.
+#' Default = TRUE. Currently no functionality.
 #'
 #'
 #' @return A list containing various results from the estimation procedure,
