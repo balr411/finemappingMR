@@ -1,9 +1,10 @@
-#' @title Calculate the variance of gamma using the law of total variance
+#' @title Calculate the variance of gamma using the law of total variance for the
+#' Z-score derivation
 #'
 #' @keywords internal
 
-bayes_total_var <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a, alpha_a,
-                            Gy_t_Gy, Gy_t_y, num_samples, sigma2_y, sigma2_gamma_prior){
+bayes_total_var_rss <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a, alpha_a,
+                            R, Z_y, num_samples, sigma2_gamma_prior){
 
   M <- length(mu_b)
 
@@ -82,14 +83,21 @@ bayes_total_var <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a, alpha_a
       }
     }
 
+
+    den_curr <- (1 + sigma2_gamma_prior*n_y*sum(unlist(crossprod(b_full[[1]], R) %*% b_full[[1]])))
+    E_var_curr <- sigma2_gamma_prior/den_curr
+
     #Now generate the estimates of the expectation and variance
-    den_curr <- (sigma2_y + sigma2_gamma_prior*sum(unlist(Map("%*%", Map(crossprod, b_full, Gy_t_Gy), b_full))))
-    E_var_curr <- sigma2_y*sigma2_gamma_prior/den_curr
+    #Note when Z_y is made to be a list the following will work
+    #den_curr <- (1 + sigma2_gamma_prior*sum(unlist(Map("%*%", Map(crossprod, b_full, Gy_t_Gy), b_full))))
+    #E_var_curr <- sigma2_gamma_prior/den_curr
 
-    num_curr <- sum(unlist(Map(crossprod, b_full, Gy_t_y))) - sum(unlist(Map("%*%", Map(crossprod, b_full, Gy_t_Gy), a_full)))
+    #Again note when Z_y is made to be a list the following will work
+    #num_curr <- sum(unlist(Map(crossprod, b_full, Z_y))) - sqrt(n_y)*sum(unlist(Map("%*%", Map(crossprod, b_full, R), a_full)))
+    num_curr <- sum(unlist(Z_y %*% b_full[[1]])) - sqrt(n_y)*sum(unlist(crossprod(b_full[[1]], R) %*% a_full[[1]]))
 
-    Var_E_curr <- (sigma2_gamma_prior*num_curr)/den_curr
-    Var_E2_curr <- ((sigma2_gamma_prior*num_curr)/den_curr)^2
+    Var_E_curr <- (sigma2_gamma_prior*sqrt(n_y)*num_curr)/den_curr
+    Var_E2_curr <- ((sigma2_gamma_prior*sqrt(n_y)*num_curr)/den_curr)^2
 
     E_var_full <- c(E_var_full, E_var_curr)
     Var_E_full <- c(Var_E_full, Var_E_curr)
@@ -100,9 +108,5 @@ bayes_total_var <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a, alpha_a
 
   return(gamma_var_total_var)
 }
-
-
-
-
 
 

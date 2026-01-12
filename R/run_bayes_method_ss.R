@@ -118,6 +118,7 @@
 #' divergence terms for b and alpha.
 #'
 #' @importFrom stats var
+#' @importFrom stringr str_glue
 #'
 #' @export
 
