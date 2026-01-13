@@ -74,8 +74,7 @@
 #'   tolerance for the variational Bayes procedure. The fitting procedure
 #'   will halt when the difference in the variational lower bound, or
 #'   \dQuote{ELBO} (the objective function to be maximized), is
-#'   less than \code{tol}. Currently we do not use the ELBO to check convergence
-#'   but rather check the changes in the parameters
+#'   less than \code{tol}.
 #'
 #' @param max_iter Maximum number of iterations before stopping estimation procedure.
 #'
@@ -340,7 +339,7 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
     elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
 
     if(iter > 1){
-      conv <- abs(elbo_conv_vec[iter] - elbo_conv_vec[iter-1]) < 1e-4
+      conv <- abs(elbo_conv_vec[iter] - elbo_conv_vec[iter-1]) < tol
     }else{
       conv <- FALSE
     }
@@ -379,6 +378,9 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
   to_return$mu2_a <- mu2_a
   to_return$alpha_a <- alpha_a
   to_return$V_y <- V_y
+
+  #ELBO
+  to_return$elbo <- elbo_conv_vec
 
   #Calculate and return credible sets if desired
   if(calc_cs_x){
