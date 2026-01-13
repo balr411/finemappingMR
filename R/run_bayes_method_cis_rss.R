@@ -11,7 +11,9 @@
 #'  standardized G and y.
 #'
 #' @param R A correlation matrix for the Z-scores. Assume it is the same for
-#'  exposure and outcome studies
+#'  exposure and outcome studies, and that it is a positive-definite matrix. If
+#'  your matrix is not positive-definite, project it to a near positive-definite
+#'  matrix using Matrix::nearPD().
 #'
 #' @param L_x Maximum number of non-zero effects for the exposure.
 #'
@@ -178,8 +180,6 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
   mu_gamma_old <- mu_gamma
 
   elbo_conv_vec <- c()
-  lik_x <- c()
-  lik_y <- c()
 
   #Now start the main iteration loop
   conv <- FALSE
@@ -190,6 +190,8 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
   Rinv <- eig$vectors %*% diag(1 / eig$values) %*% t(eig$vectors)
   RinvR <- Rinv %*% R
   RRinvR <- rowSums(R * t(RinvR))
+  ZxRinvZx <- crossprod(Z_x, Rinv) %*% Z_x
+  ZyRinvZy <- crossprod(Z_y, Rinv) %*% Z_y
 
   while(!conv & iter < max_iter){
     #Update alpha
@@ -208,9 +210,9 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
 
         if (!is.null(res$par) && res$convergence == 0) {
           V_y[l, 1] <- res$par
-          if (verbose) {
-            cat(sprintf("Update s^2 for alpha effect %d to %f\n", l, V_y[l, 1]))
-          }
+          #if (verbose) {
+          #  cat(sprintf("Update s^2 for alpha effect %d to %f\n", l, V_y[l, 1]))
+          #}
         } else {
           cat(sprintf("WARNING: s^2 alpha update for iteration %d, effect %d failed to converge; keeping previous parameters\n", iter, l))
         }
@@ -223,10 +225,20 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
           mu_a[[1]][l,] <- post_update$mu
           mu2_a[[1]][l,] <- post_update$mu2
           alpha_a[[1]][l,] <- post_update$alpha
+
+          #Update the KL-divergence
+          kl_a[[1]][l] <- get_ser_neg_KL_divergence_rss(pip = alpha_a[[1]][l,],
+                                                        prior_var = V_y[l, 1],
+                                                        post_mean = mu_a[[1]][l,],
+                                                        post_var = mu2_a[[1]][l,] - mu_a[[1]][l,]^2)
+
         }else{
           mu_a[[1]][l,] <- 0
           mu2_a[[1]][l,] <- 0
           alpha_a[[1]][l,] <- 0
+          kl_a[[1]][l] <- 0
+          #What to do with KL-divergence??
+          #Only use those that don't go to 0 at the end??
         }
 
       }
@@ -251,9 +263,9 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
 
         if (!is.null(res_x$par) && res_x$convergence == 0) {
           V_x[l, 1] <- res_x$par
-          if (verbose) {
-            cat(sprintf("Update s^2 for b effect %d to %f\n", l, V_x[l, 1]))
-          }
+          #if (verbose) {
+          #  cat(sprintf("Update s^2 for b effect %d to %f\n", l, V_x[l, 1]))
+          #}
         } else {
           cat(sprintf("WARNING: s^2 update for b iteration %d, effect %d failed to converge; keeping previous parameters\n", iter, l))
         }
@@ -267,10 +279,18 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
           mu_b[[1]][l,] <- post_update$mu
           mu2_b[[1]][l,] <- post_update$mu2
           alpha_b[[1]][l,] <- post_update$alpha
+
+          #Update the KL-divergence
+          kl_b[[1]][l] <- get_ser_neg_KL_divergence_rss(pip = alpha_b[[1]][l,],
+                                                        prior_var = V_x[l, 1],
+                                                        post_mean = mu_b[[1]][l,],
+                                                        post_var = mu2_b[[1]][l,] - mu_b[[1]][l,]^2)
+
         }else{
           mu_b[[1]][l,] <- 0
           mu2_b[[1]][l,] <- 0
           alpha_b[[1]][l,] <- 0
+          kl_b[[1]][l] <- 0
         }
       }
     }
@@ -303,16 +323,33 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
 
     mu2_gamma <- as.numeric(mu_gamma^2 + sigma2_gamma_curr)
 
+    #Get KL-divergence of gamma (taken from https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians):
+    kl_gamma <- (1/2) - log(sqrt(sigma2_gamma_prior/sigma2_gamma_curr)) - (sigma2_gamma_curr + mu_gamma^2)/(2*sigma2_gamma_prior) #Should always be <0 (its negative kl divergence)
+
     #Now check the convergence based on parameter values
-    conv <- crossprod(b_post[[1]] - b_post_old[[1]]) + crossprod(a_post[[1]] - a_post_old[[1]]) + (mu_gamma - mu_gamma_old)^2 < tol
-    b_post_old <- b_post
-    a_post_old <- a_post
-    mu_gamma_old <- mu_gamma
+    #conv <- crossprod(b_post[[1]] - b_post_old[[1]]) + crossprod(a_post[[1]] - a_post_old[[1]]) + (mu_gamma - mu_gamma_old)^2 < tol
+    #b_post_old <- b_post
+    #a_post_old <- a_post
+    #mu_gamma_old <- mu_gamma
+
+    #Now calculate the ELBO and check convergence
+    elbo_curr <- elbo_rss(ZxRinvZx, ZyRinvZy, Z_x, Z_y, mu_b, mu2_b, alpha_b,
+                          mu_a, mu2_a, alpha_a, n_x, n_y, mu_gamma, mu2_gamma, R, Rinv,
+                          kl_a, kl_b, kl_gamma)
+
+    elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
+
+    if(iter > 1){
+      conv <- abs(elbo_conv_vec[iter] - elbo_conv_vec[iter-1]) < 1e-4
+    }else{
+      conv <- FALSE
+    }
 
     iter <- iter + 1
 
     if(verbose){
       print(str_glue("Starting iteration {iter}, gamma_curr = {mu_gamma}"))
+      print(str_glue("ELBO: {elbo_conv_vec[iter - 1]}"))
     }
 
   }
