@@ -171,14 +171,8 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
   sigma2_gamma_curr <- est_init$sigma2_gamma_curr
   kl_gamma <- est_init$kl_gamma
 
-  #Make extra copy of initial estimates for convergence checks
-  b_post_old <- lapply(1:length(mu_b), function(x) rep(0, ncol(mu_b[[x]])))
-  a_post_old <- lapply(1:length(mu_a), function(x) rep(0, ncol(mu_a[[x]])))
-  mu_gamma_old <- mu_gamma
-
   elbo_conv_vec <- c()
-  lik_x <- c()
-  lik_y <- c()
+  #elbo_full_vec <- c()
 
   #Now start the main iteration loop
   conv <- FALSE
@@ -187,75 +181,211 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
   #Get the inverse of R
   eig <- eigen(R, symmetric = TRUE)
   Rinv <- eig$vectors %*% diag(1 / eig$values) %*% t(eig$vectors)
-  RinvR <- Rinv %*% R
-  RRinvR <- rowSums(R * t(RinvR))
+  RRinvR <- rep(1, nrow(Rinv))
+  ZxRinvZx <- crossprod(Z_x, Rinv) %*% Z_x
+  ZyRinvZy <- crossprod(Z_y, Rinv) %*% Z_y
+  ZxRinvZy <- crossprod(Z_x, Rinv) %*% Z_y
 
   while(!conv & iter < max_iter){
     #Update alpha
     for(l in 1:L_y){
       if(V_y[l, 1] > 0){
-        resid_al <- (1/sqrt(n_y)) * ((Z_y - sqrt(n_y) * mu_gamma * R %*% colSums(mu_b[[1]] * alpha_b[[1]]) - sqrt(n_y) * R %*% colSums(mu_a[[1]][-l, ] * alpha_a[[1]][-l, ])) - rho*Z_x - rho*sqrt(n_x)*sqrt(n_y) * R %*% colSums(mu_b[[1]] * alpha_b[[1]]))
-        ############ Stopped here on 1/12/2026
-
-        Rinv_resid_al <- Rinv %*% resid_al
-        Z_star_l <- sqrt(n_y) * R %*% Rinv_resid_al #Note this only works because R is symmetric
+        resid_al <-  ((Z_y - sqrt(n_y) * mu_gamma * R %*% colSums(mu_b[[1]] * alpha_b[[1]]) - sqrt(n_y) * R %*% colSums(mu_a[[1]][-l, ] * alpha_a[[1]][-l, ])) + rho*Z_x - rho*sqrt(n_x) * R %*% colSums(mu_b[[1]] * alpha_b[[1]]))
+        Z_star_l <- (sqrt(n_y)/(1 - rho^2)) * resid_al
 
         #Update the prior variance
         res <- optim(par = V_y[l, 1],
-                     fn = function(x) negloglik_rss_alpha(x, RRinvR, Z_star_l, n_y),
+                     fn = function(x) negloglik_sampleOverlap_alpha(x, RRinvR, Z_star_l, n_y, rho),
                      method = "Brent",
                      lower = 0,
                      upper = 1)
 
         if (!is.null(res$par) && res$convergence == 0) {
           V_y[l, 1] <- res$par
-          if (verbose) {
-            cat(sprintf("Update s^2 for alpha effect %d to %f\n", l, V_y[l, 1]))
-          }
+          #if (verbose) {
+          #  cat(sprintf("Update s^2 for alpha effect %d to %f\n", l, V_y[l, 1]))
+          #}
         } else {
           cat(sprintf("WARNING: s^2 alpha update for iteration %d, effect %d failed to converge; keeping previous parameters\n", iter, l))
         }
 
         if(V_y[l,1] > 0){
-          omega_j <- n_y * RRinvR + 1/V_y[l, 1]
+          omega_j <- (n_y/(1 - rho^2)) * RRinvR + 1/V_y[l, 1]
+
           #Update the PIPs and posterior means
           post_update <- update_posterior_rss(Z_star_l, omega_j)
 
           mu_a[[1]][l,] <- post_update$mu
           mu2_a[[1]][l,] <- post_update$mu2
           alpha_a[[1]][l,] <- post_update$alpha
+
+          #Update the KL-divergence
+          kl_a[[1]][l] <- get_ser_neg_KL_divergence_rss(pip = alpha_a[[1]][l,],
+                                                        prior_var = V_y[l, 1],
+                                                        post_mean = mu_a[[1]][l,],
+                                                        post_var = mu2_a[[1]][l,] - mu_a[[1]][l,]^2)
+
         }else{
           mu_a[[1]][l,] <- 0
           mu2_a[[1]][l,] <- 0
           alpha_a[[1]][l,] <- 0
+          kl_a[[1]][l] <- 0
+          #What to do with KL-divergence??
+          #Only use those that don't go to 0 at the end??
         }
-
       }
+
+      #elbo_full_vec <- c(elbo_full_vec, elbo_sampleOverlap(ZxRinvZx, ZyRinvZy, ZxRinvZy, Z_x, Z_y, mu_b, mu2_b, alpha_b,
+      #                                                     mu_a, mu2_a, alpha_a, n_x, n_y, mu_gamma, mu2_gamma, R, Rinv,
+      #                                                     kl_a, kl_b, kl_gamma, rho))
+
     }
 
+    #Update bl - note if there is some failure here it might revert to using the alpha updates since many of the names overlap
+    for(l in 1:L_x){
+      if(V_x[l, 1] > 0) {
+        rblx <- Z_x - sqrt(n_x)* R %*% colSums(mu_b[[1]][-l,] * alpha_b[[1]][-l,])
+        rbly <- Z_y - sqrt(n_y) * mu_gamma * R %*% colSums(mu_b[[1]][-l,] * alpha_b[[1]][-l,]) - sqrt(n_y) * R %*% colSums(mu_a[[1]] * alpha_a[[1]])
 
+        r_gam_blx <- mu_gamma*Z_x - sqrt(n_x)* mu_gamma * R %*% colSums(mu_b[[1]][-l,] * alpha_b[[1]][-l,])
+        r_gam_bly <- mu_gamma*Z_y - sqrt(n_y) * mu2_gamma * R %*% colSums(mu_b[[1]][-l,] * alpha_b[[1]][-l,]) - sqrt(n_y) * mu_gamma * R %*% colSums(mu_a[[1]] * alpha_a[[1]])
 
+        resid_bl <- sqrt(n_x)*rblx + sqrt(n_x)*rho*rbly + sqrt(n_y)*rho*r_gam_blx + sqrt(n_y)*r_gam_bly
 
+        Z_star_l <- (1/(1 - rho^2)) * resid_bl
 
+        #Update the prior variance
+        res_x <- optim(par = V_x[l, 1],
+                       fn = function(x) negloglik_sampleOverlap_b(x, RRinvR, Z_star_l, n_x, n_y, mu_gamma, mu2_gamma, rho),
+                       method = "Brent",
+                       lower = 0,
+                       upper = 1)
+
+        if (!is.null(res_x$par) && res_x$convergence == 0) {
+          V_x[l, 1] <- res_x$par
+          #if (verbose) {
+          #  cat(sprintf("Update s^2 for b effect %d to %f\n", l, V_x[l, 1]))
+          #}
+        } else {
+          cat(sprintf("WARNING: s^2 update for b iteration %d, effect %d failed to converge; keeping previous parameters\n", iter, l))
+        }
+
+        if(V_x[l,1] > 0){
+          omega_j <- ((n_x + 2*rho*sqrt(n_x*n_y)*mu_gamma + n_y*mu2_gamma)/(1-rho^2)) * RRinvR + 1/V_x[l, 1]
+
+          #Update the PIPs and posterior means
+          post_update <- update_posterior_rss(Z_star_l, omega_j) #Getting NA in the alpha
+
+          mu_b[[1]][l,] <- post_update$mu
+          mu2_b[[1]][l,] <- post_update$mu2
+          alpha_b[[1]][l,] <- post_update$alpha
+
+          #Update the KL-divergence
+          kl_b[[1]][l] <- get_ser_neg_KL_divergence_rss(pip = alpha_b[[1]][l,],
+                                                        prior_var = V_x[l, 1],
+                                                        post_mean = mu_b[[1]][l,],
+                                                        post_var = mu2_b[[1]][l,] - mu_b[[1]][l,]^2)
+
+        }else{
+          mu_b[[1]][l,] <- 0
+          mu2_b[[1]][l,] <- 0
+          alpha_b[[1]][l,] <- 0
+          kl_b[[1]][l] <- 0
+        }
+      }
+
+      #elbo_full_vec <- c(elbo_full_vec, elbo_sampleOverlap(ZxRinvZx, ZyRinvZy, ZxRinvZy, Z_x, Z_y, mu_b, mu2_b, alpha_b,
+      #                                                     mu_a, mu2_a, alpha_a, n_x, n_y, mu_gamma, mu2_gamma, R, Rinv,
+      #                                                     kl_a, kl_b, kl_gamma, rho))
+    }
+
+    #Now update gamma
+    b_post <- lapply(Map("*", mu_b, alpha_b), colSums)
+    a_post <- lapply(Map("*", mu_a, alpha_a), colSums)
+
+    #Later for multiple regions we will have Z_y be a list of vectors, and the commented
+    #out code will work.
+    #mu_gamma_num <- sigma2_gamma_prior*sqrt(n_y)*(sum(unlist(Map("%*%", b_post, Z_y))) - sqrt(n_y)*sum(unlist(Map("%*%", Map("%*%", b_post, R), a_post))))
+
+    E_btRb <- b_t_b(mu_b, mu2_b, alpha_b, R, n = 1) #Will need to modify for multiple regions
+
+    mu_gamma_den <- 1 - rho^2 + sigma2_gamma_prior*n_y*E_btRb
+
+    mu_gamma_num_part1 <- sqrt(n_y)*(sum(b_post[[1]] %*% Z_y) - sqrt(n_y)*sum(unlist(b_post[[1]] %*% R %*% a_post[[1]])))
+    mu_gamma_num_part2 <- rho * sqrt(n_y) * sum(b_post[[1]] %*% Z_x)
+    mu_gamma_num_part3 <- -rho*sqrt(n_x*n_y)*E_btRb
+
+    mu_gamma_num <- sigma2_gamma_prior * (mu_gamma_num_part1 + mu_gamma_num_part2 + mu_gamma_num_part3)
+
+    mu_gamma <- as.numeric(mu_gamma_num/mu_gamma_den)
+
+    sigma2_gamma_curr <- as.numeric((sigma2_gamma_prior * (1-rho^2))/mu_gamma_den)
+
+    mu2_gamma <- as.numeric(mu_gamma^2 + sigma2_gamma_curr)
+
+    #Get KL-divergence of gamma (taken from https://stats.stackexchange.com/questions/7440/kl-divergence-between-two-univariate-gaussians):
+    kl_gamma <- (1/2) - log(sqrt(sigma2_gamma_prior/sigma2_gamma_curr)) - (sigma2_gamma_curr + mu_gamma^2)/(2*sigma2_gamma_prior) #Should always be <0 (its negative kl divergence)
+
+    #Now calculate the ELBO and check convergence
+    elbo_curr <- elbo_sampleOverlap(ZxRinvZx, ZyRinvZy, ZxRinvZy, Z_x, Z_y, mu_b, mu2_b, alpha_b,
+                                    mu_a, mu2_a, alpha_a, n_x, n_y, mu_gamma, mu2_gamma, R, Rinv,
+                                    kl_a, kl_b, kl_gamma, rho)
+
+    elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
+    #elbo_full_vec <- c(elbo_full_vec, elbo_curr)
+
+    if(iter > 1){
+      conv <- abs(elbo_conv_vec[iter] - elbo_conv_vec[iter-1]) < tol
+    }else{
+      conv <- FALSE
+    }
+
+    iter <- iter + 1
+
+    if(verbose){
+      print(str_glue("Starting iteration {iter}, gamma_curr = {mu_gamma}"))
+      print(str_glue("ELBO: {elbo_conv_vec[iter - 1]}"))
+    }
   }
 
 
+  #Calculate the variance using the law of total variance
+  total_var <- sampleOverlap_total_var_rss(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a,
+                                           alpha_a, R, Z_y, num_samples,
+                                           sigma2_gamma_prior, rho)
 
+  #Return a list with the various components
+  to_return <- list()
 
+  #Gamma estimation
+  to_return$res <- data.frame(gamma = mu_gamma,
+                              gamma_var = sigma2_gamma_curr,
+                              gamma_total_var = total_var,
+                              iter = iter)
 
+  #b estimation
+  to_return$mu_b <- mu_b
+  to_return$mu2_b <- mu2_b
+  to_return$alpha_b <- alpha_b
+  to_return$V_x <- V_x
 
+  #alpha estimation
+  to_return$mu_a <- mu_a
+  to_return$mu2_a <- mu2_a
+  to_return$alpha_a <- alpha_a
+  to_return$V_y <- V_y
 
+  #ELBO
+  to_return$elbo <- elbo_conv_vec
 
+  #Calculate and return credible sets if desired
+  if(calc_cs_x){
+    to_return$cs_x <- get_cs_rss(V = V_x, alpha = alpha_b, R = list(R))
+  }
 
+  if(calc_cs_y){
+    to_return$cs_y <- get_cs_rss(V = V_y, alpha = alpha_a, R = list(R))
+  }
 
-
-
-
-
-
-
-
-
-
-
+  return(to_return)
 }

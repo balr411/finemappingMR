@@ -179,7 +179,7 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
   mu_gamma_old <- mu_gamma
 
   elbo_conv_vec <- c()
-  elbo_full_vec <- c()
+  #elbo_full_vec <- c()
 
   #Now start the main iteration loop
   conv <- FALSE
@@ -245,9 +245,9 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
 
       }
 
-      elbo_full_vec <- c(elbo_full_vec, elbo_rss(ZxRinvZx, ZyRinvZy, Z_x, Z_y, mu_b, mu2_b, alpha_b,
-                                                 mu_a, mu2_a, alpha_a, n_x, n_y, mu_gamma, mu2_gamma, R, Rinv,
-                                                 kl_a, kl_b, kl_gamma))
+      #elbo_full_vec <- c(elbo_full_vec, elbo_rss(ZxRinvZx, ZyRinvZy, Z_x, Z_y, mu_b, mu2_b, alpha_b,
+      #                                           mu_a, mu2_a, alpha_a, n_x, n_y, mu_gamma, mu2_gamma, R, Rinv,
+      #                                           kl_a, kl_b, kl_gamma))
     }
 
     #Update bl - note if there is some failure here it might revert to using the alpha updates since many of the names overlap
@@ -304,9 +304,9 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
         }
       }
 
-      elbo_full_vec <- c(elbo_full_vec, elbo_rss(ZxRinvZx, ZyRinvZy, Z_x, Z_y, mu_b, mu2_b, alpha_b,
-                                                 mu_a, mu2_a, alpha_a, n_x, n_y, mu_gamma, mu2_gamma, R, Rinv,
-                                                 kl_a, kl_b, kl_gamma))
+      #elbo_full_vec <- c(elbo_full_vec, elbo_rss(ZxRinvZx, ZyRinvZy, Z_x, Z_y, mu_b, mu2_b, alpha_b,
+      #                                           mu_a, mu2_a, alpha_a, n_x, n_y, mu_gamma, mu2_gamma, R, Rinv,
+      #                                           kl_a, kl_b, kl_gamma))
     }
 
     #Now update gamma
@@ -352,7 +352,7 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
                           kl_a, kl_b, kl_gamma)
 
     elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
-    elbo_full_vec <- c(elbo_full_vec, elbo_curr)
+    #elbo_full_vec <- c(elbo_full_vec, elbo_curr)
 
     if(iter > 1){
       conv <- abs(elbo_conv_vec[iter] - elbo_conv_vec[iter-1]) < tol
@@ -404,7 +404,7 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
   }
 
   if(calc_cs_y){
-    to_return$cs_y <- get_csrss(V = V_y, alpha = alpha_a, R = list(R))
+    to_return$cs_y <- get_cs_rss(V = V_y, alpha = alpha_a, R = list(R))
   }
 
   return(to_return)
