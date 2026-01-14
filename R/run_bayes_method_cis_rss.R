@@ -179,6 +179,7 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
   mu_gamma_old <- mu_gamma
 
   elbo_conv_vec <- c()
+  elbo_full_vec <- c()
 
   #Now start the main iteration loop
   conv <- FALSE
@@ -187,8 +188,9 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
   #Get the inverse of R
   eig <- eigen(R, symmetric = TRUE)
   Rinv <- eig$vectors %*% diag(1 / eig$values) %*% t(eig$vectors)
-  RinvR <- Rinv %*% R
-  RRinvR <- rowSums(R * t(RinvR))
+  #RinvR <- Rinv %*% R
+  #RRinvR <- rowSums(R * t(RinvR))
+  RRinvR <- rep(1, nrow(Rinv))
   ZxRinvZx <- crossprod(Z_x, Rinv) %*% Z_x
   ZyRinvZy <- crossprod(Z_y, Rinv) %*% Z_y
 
@@ -198,7 +200,8 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
       if(V_y[l, 1] > 0){
         resid_al <- Z_y - sqrt(n_y) * mu_gamma * R %*% colSums(mu_b[[1]] * alpha_b[[1]]) - sqrt(n_y) * R %*% colSums(mu_a[[1]][-l, ] * alpha_a[[1]][-l, ])
         Rinv_resid_al <- Rinv %*% resid_al
-        Z_star_l <- sqrt(n_y) * R %*% Rinv_resid_al #Note this only works because R is symmetric
+        #Z_star_l <- sqrt(n_y) * R %*% Rinv_resid_al #Note this only works because R is symmetric
+        Z_star_l <- sqrt(n_y) * resid_al
 
         #Update the prior variance
         res <- optim(par = V_y[l, 1],
@@ -241,6 +244,10 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
         }
 
       }
+
+      elbo_full_vec <- c(elbo_full_vec, elbo_rss(ZxRinvZx, ZyRinvZy, Z_x, Z_y, mu_b, mu2_b, alpha_b,
+                                                 mu_a, mu2_a, alpha_a, n_x, n_y, mu_gamma, mu2_gamma, R, Rinv,
+                                                 kl_a, kl_b, kl_gamma))
     }
 
     #Update bl - note if there is some failure here it might revert to using the alpha updates since many of the names overlap
@@ -248,10 +255,12 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
       if(V_x[l, 1] > 0) {
         rblx <- Z_x - sqrt(n_x)* R %*% colSums(mu_b[[1]][-l,] * alpha_b[[1]][-l,])
         rbly <- mu_gamma*Z_y - sqrt(n_y) * mu2_gamma * R %*% colSums(mu_b[[1]][-l,] * alpha_b[[1]][-l,]) - sqrt(n_y) * mu_gamma * R %*% colSums(mu_a[[1]] * alpha_a[[1]])
-        resid_bl <- (1/sqrt(n_x + n_y*mu2_gamma)) * (sqrt(n_x) * rblx + sqrt(n_y) * rbly)
+        #resid_bl <- (1/sqrt(n_x + n_y*mu2_gamma)) * (sqrt(n_x) * rblx + sqrt(n_y) * rbly)
 
-        Rinv_resid_bl <- Rinv %*% resid_bl
-        Z_star_l <- sqrt(n_x + n_y*mu2_gamma) * R %*% Rinv_resid_bl #Note this only works because R is symmetric
+        #Rinv_resid_bl <- Rinv %*% resid_bl
+        #Z_star_l <- sqrt(n_x + n_y*mu2_gamma) * R %*% Rinv_resid_bl #Note this only works because R is symmetric
+
+        Z_star_l <- (sqrt(n_x) * rblx + sqrt(n_y) * rbly)
 
         #Update the prior variance
         res_x <- optim(par = V_x[l, 1],
@@ -273,7 +282,9 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
           omega_j <- (n_x + n_y*mu2_gamma) * RRinvR + 1/V_x[l, 1]
 
           #Update the PIPs and posterior means
-          post_update <- update_posterior_rss(Z_star_l, omega_j) #Getting NA in the alpha
+          post_update <- update_posterior_rss(Z_star_l, omega_j)
+
+          #post_update <- update_posterior_rss(Z_star_l, rep((n_x + n_y*mu2_gamma), length(RRinvR)) + 1/V_x[l, 1])
 
           mu_b[[1]][l,] <- post_update$mu
           mu2_b[[1]][l,] <- post_update$mu2
@@ -292,6 +303,10 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
           kl_b[[1]][l] <- 0
         }
       }
+
+      elbo_full_vec <- c(elbo_full_vec, elbo_rss(ZxRinvZx, ZyRinvZy, Z_x, Z_y, mu_b, mu2_b, alpha_b,
+                                                 mu_a, mu2_a, alpha_a, n_x, n_y, mu_gamma, mu2_gamma, R, Rinv,
+                                                 kl_a, kl_b, kl_gamma))
     }
 
     #Now update gamma
@@ -337,6 +352,7 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
                           kl_a, kl_b, kl_gamma)
 
     elbo_conv_vec <- c(elbo_conv_vec, elbo_curr)
+    elbo_full_vec <- c(elbo_full_vec, elbo_curr)
 
     if(iter > 1){
       conv <- abs(elbo_conv_vec[iter] - elbo_conv_vec[iter-1]) < tol
