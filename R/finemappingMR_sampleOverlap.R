@@ -171,6 +171,8 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
   sigma2_gamma_curr <- est_init$sigma2_gamma_curr
   kl_gamma <- est_init$kl_gamma
 
+  p <- length(Z_x)
+
   elbo_conv_vec <- c()
   #elbo_full_vec <- c()
 
@@ -194,14 +196,26 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
         Z_star_l <- (sqrt(n_y)/(1 - rho^2)) * resid_al
 
         #Update the prior variance
-        res <- optim(par = V_y[l, 1],
-                     fn = function(x) negloglik_sampleOverlap_alpha(x, RRinvR, Z_star_l, n_y, rho),
+        res <- optim(par = log(V_y[l, 1]),
+                     fn = function(x) negloglik_sampleOverlap_alpha_trans(x, RRinvR, Z_star_l, n_y, rho),
                      method = "Brent",
                      lower = 0,
                      upper = 1)
 
         if (!is.null(res$par) && res$convergence == 0) {
-          V_y[l, 1] <- res$par
+          #First check if the new parameter beats the old:
+          if(negloglik_sampleOverlap_alpha_trans(res$par, RRinvR, Z_star_l, n_y, rho) > negloglik_sampleOverlap_alpha_trans(log(V_y[l,1]), RRinvR, Z_star_l, n_y, rho)){
+            V_y_new <- V_y[l,1]
+          }else{
+            V_y_new <- exp(res$par)
+          }
+
+          #Now check if the parameter beats 0:
+          if(log(p) > -negloglik_sampleOverlap_alpha_trans(log(V_y_new), RRinvR, Z_star_l, n_y, rho)){
+            V_y[l, 1] <- 0
+          }else{
+            V_y[l, 1] <- V_y_new
+          }
           #if (verbose) {
           #  cat(sprintf("Update s^2 for alpha effect %d to %f\n", l, V_y[l, 1]))
           #}
@@ -255,14 +269,27 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
         Z_star_l <- (1/(1 - rho^2)) * resid_bl
 
         #Update the prior variance
-        res_x <- optim(par = V_x[l, 1],
-                       fn = function(x) negloglik_sampleOverlap_b(x, RRinvR, Z_star_l, n_x, n_y, mu_gamma, mu2_gamma, rho),
+        res_x <- optim(par = log(V_x[l, 1]),
+                       fn = function(x) negloglik_sampleOverlap_b_trans(x, RRinvR, Z_star_l, n_x, n_y, mu_gamma, mu2_gamma, rho),
                        method = "Brent",
                        lower = 0,
                        upper = 1)
 
         if (!is.null(res_x$par) && res_x$convergence == 0) {
-          V_x[l, 1] <- res_x$par
+          #First check if the new parameter beats the old:
+          if(negloglik_sampleOverlap_b_trans(res_x$par, RRinvR, Z_star_l, n_x, n_y, mu_gamma, mu2_gamma, rho) > negloglik_sampleOverlap_b_trans(log(V_x[l,1]),  RRinvR, Z_star_l, n_x, n_y, mu_gamma, mu2_gamma, rho)){
+            V_x_new <- V_x[l,1]
+          }else{
+            V_x_new <- exp(res_x$par)
+          }
+
+          #Now check if the parameter beats 0:
+          if(log(p) > -negloglik_sampleOverlap_b_trans(log(V_x_new), RRinvR, Z_star_l, n_x, n_y, mu_gamma, mu2_gamma, rho)){
+            V_x[l, 1] <- 0
+          }else{
+            V_x[l, 1] <- V_x_new
+          }
+
           #if (verbose) {
           #  cat(sprintf("Update s^2 for b effect %d to %f\n", l, V_x[l, 1]))
           #}

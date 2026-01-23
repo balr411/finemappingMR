@@ -9,11 +9,27 @@ negloglik_sampleOverlap_alpha <- function(sl2, RRinvR, Z_star_l, n_y, rho){
 }
 
 negloglik_sampleOverlap_b <- function(sl2, RRinvR, Z_star_l, n_x, n_y, Egamma, Egamma2, rho){
+  omega_j <- ((n_x + 2*rho*sqrt(n_x*n_y)*Egamma + n_y*Egamma2)/(1 - rho^2)) * RRinvR + 1/sl2
+
+  return(-matrixStats::logSumExp(-0.5*log(sl2*omega_j) + Z_star_l^2/(2 * omega_j)))
+}
+
+negloglik_sampleOverlap_alpha_trans <- function(theta, RRinvR, Z_star_l, n_y, rho){
+  sl2 <- exp(theta)
+
+  omega_j <- (n_y/(1 - rho^2)) * RRinvR + 1/sl2
+
+  return(-matrixStats::logSumExp(-0.5*log(sl2*omega_j) + Z_star_l^2/(2 * omega_j)))
+}
+
+negloglik_sampleOverlap_b_trans <- function(theta, RRinvR, Z_star_l, n_x, n_y, Egamma, Egamma2, rho){
+  sl2 <- exp(theta)
 
   omega_j <- ((n_x + 2*rho*sqrt(n_x*n_y)*Egamma + n_y*Egamma2)/(1 - rho^2)) * RRinvR + 1/sl2
 
   return(-matrixStats::logSumExp(-0.5*log(sl2*omega_j) + Z_star_l^2/(2 * omega_j)))
 }
+
 
 elbo_sampleOverlap <- function(ZxRinvZx, ZyRinvZy, ZxRinvZy, Z_x, Z_y, mu_b, mu2_b, alpha_b,
                                mu_a, mu2_a, alpha_a, n_x, n_y, mu_gamma, mu2_gamma, R, Rinv,
