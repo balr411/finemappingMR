@@ -199,8 +199,8 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
         res <- optim(par = log(V_y[l, 1]),
                      fn = function(x) negloglik_sampleOverlap_alpha_trans(x, RRinvR, Z_star_l, n_y, rho),
                      method = "Brent",
-                     lower = 0,
-                     upper = 1)
+                     lower = -30,
+                     upper = 0)
 
         if (!is.null(res$par) && res$convergence == 0) {
           #First check if the new parameter beats the old:
@@ -272,8 +272,8 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
         res_x <- optim(par = log(V_x[l, 1]),
                        fn = function(x) negloglik_sampleOverlap_b_trans(x, RRinvR, Z_star_l, n_x, n_y, mu_gamma, mu2_gamma, rho),
                        method = "Brent",
-                       lower = 0,
-                       upper = 1)
+                       lower = -30,
+                       upper = 0)
 
         if (!is.null(res_x$par) && res_x$convergence == 0) {
           #First check if the new parameter beats the old:
