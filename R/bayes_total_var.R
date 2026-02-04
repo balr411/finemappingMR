@@ -7,8 +7,17 @@ bayes_total_var <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a, alpha_a
 
   M <- length(mu_b)
 
-  idx_b_keep_full <- apply(V_x, 2, function(x) which(x > 0))
-  idx_a_keep_full <- apply(V_y, 2, function(x) which(x > 0))
+  if(M == 1){
+    idx_b_keep_full <- list(which(V_x[,1] > 0))
+  }else{
+    idx_b_keep_full <- apply(V_x, 2, function(x) which(x > 0))
+  }
+
+  if(M == 1){
+    idx_a_keep_full <- list(which(V_y[,1] > 0))
+  }else{
+    idx_a_keep_full <- apply(V_y, 2, function(x) which(x > 0))
+  }
 
   E_var_full <- c()
   Var_E_full <- c()
