@@ -387,8 +387,8 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
 
   #Calculate the variance using the law of total variance
   total_var <- sampleOverlap_total_var_rss(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a,
-                                           alpha_a, R, Z_y, num_samples,
-                                           sigma2_gamma_prior, rho)
+                                           alpha_a, R, Z_y, Z_x, num_samples,
+                                           sigma2_gamma_prior, rho, n_y)
 
   #Return a list with the various components
   to_return <- list()

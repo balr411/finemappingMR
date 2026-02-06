@@ -63,13 +63,28 @@ elbo_sampleOverlap <- function(ZxRinvZx, ZyRinvZy, ZxRinvZy, Z_x, Z_y, mu_b, mu2
 }
 
 sampleOverlap_total_var_rss <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a,
-                                        alpha_a, R, Z_y, num_samples,
-                                        sigma2_gamma_prior, rho){
+                                        alpha_a, R, Z_y, Z_x, num_samples,
+                                        sigma2_gamma_prior, rho, n_y){
 
   M <- length(mu_b)
 
-  idx_b_keep_full <- apply(V_x, 2, function(x) which(x > 0))
-  idx_a_keep_full <- apply(V_y, 2, function(x) which(x > 0))
+  if(M == 1){
+    idx_b_keep_full <- list(which(V_x[,1] > 0))
+  }else{
+    idx_b_keep_full <- list()
+    for(i in 1:ncol(V_x)){
+      idx_b_keep_full[[i]] <- which(V_x[,i] > 0)
+    }
+  }
+
+  if(M == 1){
+    idx_a_keep_full <- list(which(V_y[,1] > 0))
+  }else{
+    idx_a_keep_full <- list()
+    for(i in 1:ncol(V_y)){
+      idx_a_keep_full[[i]] <- which(V_y[,i] > 0)
+    }
+  }
 
   E_var_full <- c()
   Var_E_full <- c()
