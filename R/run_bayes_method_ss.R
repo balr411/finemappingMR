@@ -471,7 +471,7 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
 
       if(iter > 1){
-        conv <- abs(elbo_conv_vec[iter] - elbo_conv_vec[iter-1]) < 1e-4
+        conv <- abs(elbo_conv_vec[iter] - elbo_conv_vec[iter-1]) < tol
       }else{
         conv <- FALSE
       }
