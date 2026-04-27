@@ -64,7 +64,7 @@ elbo_sampleOverlap <- function(ZxRinvZx, ZyRinvZy, ZxRinvZy, Z_x, Z_y, mu_b, mu2
 
 sampleOverlap_total_var_rss <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a,
                                         alpha_a, R, Z_y, Z_x, num_samples,
-                                        sigma2_gamma_prior, rho, n_y){
+                                        sigma2_gamma_prior, rho, n_y, n_x){
 
   M <- length(mu_b)
 
