@@ -191,7 +191,7 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
   while(!conv & iter < max_iter){
     #Update alpha
     for(l in 1:L_y){
-      resid_al <-  ((Z_y - sqrt(n_y) * mu_gamma * R %*% colSums(mu_b[[1]] * alpha_b[[1]]) - sqrt(n_y) * R %*% colSums(mu_a[[1]][-l, ] * alpha_a[[1]][-l, ])) + rho*Z_x - rho*sqrt(n_x) * R %*% colSums(mu_b[[1]] * alpha_b[[1]]))
+      resid_al <-  ((Z_y - sqrt(n_y) * mu_gamma * R %*% colSums(mu_b[[1]] * alpha_b[[1]]) - sqrt(n_y) * R %*% colSums(mu_a[[1]][-l, ] * alpha_a[[1]][-l, ])) - rho*Z_x + rho*sqrt(n_x) * R %*% colSums(mu_b[[1]] * alpha_b[[1]]))
       Z_star_l <- (sqrt(n_y)/(1 - rho^2)) * resid_al
 
       #Update the prior variance
@@ -268,7 +268,7 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
       r_gam_blx <- mu_gamma*Z_x - sqrt(n_x)* mu_gamma * R %*% colSums(mu_b[[1]][-l,] * alpha_b[[1]][-l,])
       r_gam_bly <- mu_gamma*Z_y - sqrt(n_y) * mu2_gamma * R %*% colSums(mu_b[[1]][-l,] * alpha_b[[1]][-l,]) - sqrt(n_y) * mu_gamma * R %*% colSums(mu_a[[1]] * alpha_a[[1]])
 
-      resid_bl <- sqrt(n_x)*rblx + sqrt(n_x)*rho*rbly + sqrt(n_y)*rho*r_gam_blx + sqrt(n_y)*r_gam_bly
+      resid_bl <- sqrt(n_x)*rblx - sqrt(n_x)*rho*rbly - sqrt(n_y)*rho*r_gam_blx + sqrt(n_y)*r_gam_bly
 
       Z_star_l <- (1/(1 - rho^2)) * resid_bl
 
@@ -306,7 +306,7 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
       }
 
       if(V_x[l,1] > 0){
-        omega_j <- ((n_x + 2*rho*sqrt(n_x*n_y)*mu_gamma + n_y*mu2_gamma)/(1-rho^2)) * RRinvR + 1/V_x[l, 1]
+        omega_j <- ((n_x - 2*rho*sqrt(n_x*n_y)*mu_gamma + n_y*mu2_gamma)/(1-rho^2)) * RRinvR + 1/V_x[l, 1]
 
         #Update the PIPs and posterior means
         post_update <- update_posterior_rss(Z_star_l, omega_j) #Getting NA in the alpha
@@ -347,8 +347,8 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
     mu_gamma_den <- 1 - rho^2 + sigma2_gamma_prior*n_y*E_btRb
 
     mu_gamma_num_part1 <- sqrt(n_y)*(sum(b_post[[1]] %*% Z_y) - sqrt(n_y)*sum(unlist(b_post[[1]] %*% R %*% a_post[[1]])))
-    mu_gamma_num_part2 <- rho * sqrt(n_y) * sum(b_post[[1]] %*% Z_x)
-    mu_gamma_num_part3 <- -rho*sqrt(n_x*n_y)*E_btRb
+    mu_gamma_num_part2 <- -rho * sqrt(n_y) * sum(b_post[[1]] %*% Z_x)
+    mu_gamma_num_part3 <- rho*sqrt(n_x*n_y)*E_btRb
 
     mu_gamma_num <- sigma2_gamma_prior * (mu_gamma_num_part1 + mu_gamma_num_part2 + mu_gamma_num_part3)
 

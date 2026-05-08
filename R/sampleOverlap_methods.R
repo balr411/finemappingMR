@@ -9,7 +9,7 @@ negloglik_sampleOverlap_alpha <- function(sl2, RRinvR, Z_star_l, n_y, rho){
 }
 
 negloglik_sampleOverlap_b <- function(sl2, RRinvR, Z_star_l, n_x, n_y, Egamma, Egamma2, rho){
-  omega_j <- ((n_x + 2*rho*sqrt(n_x*n_y)*Egamma + n_y*Egamma2)/(1 - rho^2)) * RRinvR + 1/sl2
+  omega_j <- ((n_x - 2*rho*sqrt(n_x*n_y)*Egamma + n_y*Egamma2)/(1 - rho^2)) * RRinvR + 1/sl2
 
   return(-matrixStats::logSumExp(-0.5*log(sl2*omega_j) + Z_star_l^2/(2 * omega_j)))
 }
@@ -25,7 +25,7 @@ negloglik_sampleOverlap_alpha_trans <- function(theta, RRinvR, Z_star_l, n_y, rh
 negloglik_sampleOverlap_b_trans <- function(theta, RRinvR, Z_star_l, n_x, n_y, Egamma, Egamma2, rho){
   sl2 <- exp(theta)
 
-  omega_j <- ((n_x + 2*rho*sqrt(n_x*n_y)*Egamma + n_y*Egamma2)/(1 - rho^2)) * RRinvR + 1/sl2
+  omega_j <- ((n_x - 2*rho*sqrt(n_x*n_y)*Egamma + n_y*Egamma2)/(1 - rho^2)) * RRinvR + 1/sl2
 
   return(-matrixStats::logSumExp(-0.5*log(sl2*omega_j) + Z_star_l^2/(2 * omega_j)))
 }
@@ -55,7 +55,7 @@ elbo_sampleOverlap <- function(ZxRinvZx, ZyRinvZy, ZxRinvZy, Z_x, Z_y, mu_b, mu2
   part10 <- sqrt(n_x*n_y) * mu_gamma * E_btRb
   part11 <- sqrt(n_x*n_y) * crossprod(a_post[[1]], R) %*% b_post[[1]]
 
-  Eloglik <- (-0.5/(1-rho^2)) * (part1 + part2 + part3 + part4 + part5 + part6 + 2*rho*(part7 + part8 + part9 + part10 + part11))
+  Eloglik <- (-0.5/(1-rho^2)) * (part1 + part2 + part3 + part4 + part5 + part6 - 2*rho*(part7 + part8 + part9 + part10 + part11))
 
   elbo <- Eloglik + sum(unlist(kl_a)) + sum(unlist(kl_b)) + kl_gamma
 
@@ -170,8 +170,8 @@ sampleOverlap_total_var_rss <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu
     #Again note when Z_y is made to be a list the following will work
     #num_curr <- sum(unlist(Map(crossprod, b_full, Z_y))) - sqrt(n_y)*sum(unlist(Map("%*%", Map(crossprod, b_full, R), a_full)))
     num_curr_part1 <- sqrt(n_y) * (sum(unlist(Z_y %*% b_full[[1]])) - sqrt(n_y)*sum(unlist(crossprod(b_full[[1]], R) %*% a_full[[1]])))
-    num_curr_part2 <- rho*sqrt(n_y)*sum(unlist(Z_x %*% b_full[[1]]))
-    num_curr_part3 <- -rho * sqrt(n_x*n_y) * sum(unlist(crossprod(b_full[[1]], R) %*% b_full[[1]]))
+    num_curr_part2 <- -rho*sqrt(n_y)*sum(unlist(Z_x %*% b_full[[1]]))
+    num_curr_part3 <- rho * sqrt(n_x*n_y) * sum(unlist(crossprod(b_full[[1]], R) %*% b_full[[1]]))
 
     Var_E_curr <- (sigma2_gamma_prior * (num_curr_part1 + num_curr_part2 + num_curr_part3))/den_curr
     Var_E2_curr <- ((sigma2_gamma_prior * (num_curr_part1 + num_curr_part2 + num_curr_part3))/den_curr)^2
