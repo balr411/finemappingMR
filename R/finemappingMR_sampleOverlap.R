@@ -149,7 +149,7 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
   #Right now just slightly hacking the original function but it should come out fine
   #Note that the scale_prior_variances are probably not correct. The put those to
   #50 or something in the SuSiE code?
-  est_init <- fmr_init(M = 1, L_x, L_y, susie_init = NULL, susie_init_y = NULL,
+  est_init <- fmr_init(M = 1, L_x, L_y, susie_init = susie_init, susie_init_y = susie_init_y,
                        scaled_prior_variance_x, scaled_prior_variance_y, varX = 1,
                        varY = 1, Gx_t_Gx = list(R), Gy_t_Gy = list(R), mu_gamma_init,
                        mu2_gamma_init)
@@ -346,7 +346,7 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
 
     mu_gamma_den <- 1 - rho^2 + sigma2_gamma_prior*n_y*E_btRb
 
-    mu_gamma_num_part1 <- sqrt(n_y)*(sum(b_post[[1]] %*% Z_y) - sqrt(n_y)*sum(unlist(b_post[[1]] %*% R %*% a_post[[1]])))
+    mu_gamma_num_part1 <- sqrt(n_y)*(sum(b_post[[1]] %*% Z_y) - sqrt(n_y)*sum(unlist(b_post[[1]] %*% R %*% a_post[[1]]))) ##Should not be a second sqrt(n_y)? - no it is correct as is
     mu_gamma_num_part2 <- -rho * sqrt(n_y) * sum(b_post[[1]] %*% Z_x)
     mu_gamma_num_part3 <- rho*sqrt(n_x*n_y)*E_btRb
 

@@ -169,7 +169,7 @@ sampleOverlap_total_var_rss <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu
 
     #Again note when Z_y is made to be a list the following will work
     #num_curr <- sum(unlist(Map(crossprod, b_full, Z_y))) - sqrt(n_y)*sum(unlist(Map("%*%", Map(crossprod, b_full, R), a_full)))
-    num_curr_part1 <- sqrt(n_y) * (sum(unlist(Z_y %*% b_full[[1]])) - sqrt(n_y)*sum(unlist(crossprod(b_full[[1]], R) %*% a_full[[1]])))
+    num_curr_part1 <- sqrt(n_y) * (sum(unlist(Z_y %*% b_full[[1]])) - sqrt(n_y)*sum(unlist(crossprod(b_full[[1]], R) %*% a_full[[1]]))) ## Is there an extra sqrt(n_y) here? - no it is correct as is
     num_curr_part2 <- -rho*sqrt(n_y)*sum(unlist(Z_x %*% b_full[[1]]))
     num_curr_part3 <- rho * sqrt(n_x*n_y) * sum(unlist(crossprod(b_full[[1]], R) %*% b_full[[1]]))
 
