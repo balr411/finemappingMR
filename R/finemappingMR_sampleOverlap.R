@@ -106,6 +106,10 @@
 #' @param include_pleiotropy Include a pleiotropy term in the estimation of gamma?
 #' Default = TRUE. Currently no functionality.
 #'
+#' @param conservative_total_variance Use the conservative estimate of the total
+#' variance where there is no multiplying the expected variance by 1-rho^2?
+#' Default = FALSE.
+#'
 #'
 #' @return A list containing various results from the estimation procedure,
 #' including a data frame containing the gamma estimation results, as well as
@@ -142,8 +146,13 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
                                         sigma2_gamma_prior = 10^6,
                                         num_samples = 1000,
                                         beta_gamma_alpha = FALSE,
-                                        include_pleiotropy = TRUE){
+                                        include_pleiotropy = TRUE,
+                                        conservative_total_variance = FALSE){
 
+
+  if(rho >= 0.5 & !conservative_total_variance){
+    warning("You have given a rho value >= 0.5. We recommend you set conservative_total_variance to TRUE.")
+  }
 
   #Initialize all of the estimates
   #Right now just slightly hacking the original function but it should come out fine
@@ -386,9 +395,16 @@ finemappingMR_sampleOverlap <- function(Z_x, Z_y, R, rho,
 
 
   #Calculate the variance using the law of total variance
-  total_var <- sampleOverlap_total_var_rss(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a,
-                                           alpha_a, R, Z_y, Z_x, num_samples,
-                                           sigma2_gamma_prior, rho, n_y, n_x)
+  if(!conservative_total_variance){
+    total_var <- sampleOverlap_total_var_rss(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a,
+                                             alpha_a, R, Z_y, Z_x, num_samples,
+                                             sigma2_gamma_prior, rho, n_y, n_x)
+  }else{
+    total_var <- sampleOverlap_total_var_rss_conservative(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu2_a,
+                                                          alpha_a, R, Z_y, Z_x, num_samples,
+                                                          sigma2_gamma_prior, rho, n_y, n_x)
+  }
+
 
   #Return a list with the various components
   to_return <- list()
