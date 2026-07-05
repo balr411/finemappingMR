@@ -34,6 +34,7 @@ get_cs <- function(V, alpha, G_t_G){
     }else{
       cs <- cs[include_idx]
       claimed_coverage <- claimed_coverage[include_idx]
+      idx_orig <- c(1:nrow(alpha[[m]]))[include_idx]
 
       # Compute and filter by "purity".
       use_rfast <- requireNamespace("Rfast",quietly = TRUE)
@@ -53,6 +54,7 @@ get_cs <- function(V, alpha, G_t_G){
       if (length(is_pure) > 0) {
         cs        <- cs[is_pure]
         purity    <- purity[is_pure,]
+        idx_orig <- idx_orig[is_pure]
 
         cs_x[[m]] <- cs
       }else{
@@ -61,6 +63,6 @@ get_cs <- function(V, alpha, G_t_G){
     }
   }
 
-  return(cs_x)
+  return(list(cs = cs_x, idx = which(include_idx)))
 
 }

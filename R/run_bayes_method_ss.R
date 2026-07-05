@@ -523,11 +523,15 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
   #Calculate and return credible sets if desired
   if(calc_cs_x){
-    to_return$cs_x <- get_cs(V = V_x, alpha = alpha_b, G_t_G = Gx_t_Gx)
+    cs_x_tmp <- get_cs(V = V_x, alpha = alpha_b, G_t_G = Gx_t_Gx)
+    to_return$cs_x <- cs_x_tmp$cs
+    to_return$cs_x_idx <- cs_x_tmp$idx
   }
 
   if(calc_cs_y){
-    to_return$cs_y <- get_cs(V = V_y, alpha = alpha_a, G_t_G = Gy_t_Gy)
+    cs_y_tmp <- get_cs(V = V_y, alpha = alpha_a, G_t_G = Gy_t_Gy)
+    to_return$cs_y <- cs_y_tmp$cs
+    to_return$cs_y_idx <- cs_y_tmp$idx
   }
 
   return(to_return)

@@ -400,11 +400,15 @@ run_bayes_method_cis_rss <- function(Z_x, Z_y, R,
 
   #Calculate and return credible sets if desired
   if(calc_cs_x){
-    to_return$cs_x <- get_cs_rss(V = V_x, alpha = alpha_b, R = list(R))
+    cs_x_tmp <- get_cs_rss(V = V_x, alpha = alpha_b, R = list(R))
+    to_return$cs_x <- cs_x_tmp$cs
+    to_return$cs_x_idx <- cs_x_tmp$idx
   }
 
   if(calc_cs_y){
-    to_return$cs_y <- get_cs_rss(V = V_y, alpha = alpha_a, R = list(R))
+    cs_y_tmp <- get_cs_rss(V = V_y, alpha = alpha_a, R = list(R))
+    to_return$cs_y <- cs_y_tmp$cs
+    to_return$cs_y_idx <- cs_y_tmp$idx
   }
 
   return(to_return)
