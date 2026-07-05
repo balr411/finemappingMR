@@ -63,6 +63,6 @@ get_cs <- function(V, alpha, G_t_G){
     }
   }
 
-  return(list(cs = cs_x, idx = which(include_idx)))
+  return(list(cs = cs_x, idx = idx_orig))
 
 }
