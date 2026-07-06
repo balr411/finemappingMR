@@ -31,6 +31,7 @@ get_cs_rss <- function(V, alpha, R){
 
     if (sum(include_idx) == 0){
       cs_x[[m]] <- NA
+      idx_orig <- c()
     }else{
       cs <- cs[include_idx]
       claimed_coverage <- claimed_coverage[include_idx]
