@@ -60,6 +60,7 @@ get_cs_rss <- function(V, alpha, R){
         cs_x[[m]] <- cs
       }else{
         cs_x[[m]] <- NA
+        idx_orig <- c()
       }
     }
   }
