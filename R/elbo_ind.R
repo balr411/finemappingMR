@@ -43,3 +43,27 @@ bayes_elbo_ind <- function(sigma2_y, sigma2_x, x, y, G_x, G_y, Xa, Xb_y,
 
   return(list(elbo_curr, part2, part3))
 }
+
+#' @title Expected squared residuals and quadratic form for individual-level data
+#'
+#' @description \code{get_ER2} gives the expected value of
+#' \eqn{||Y - X b||^2} and \code{test_ER} the expected value of
+#' \eqn{||X b||^2} where \eqn{b = \sum_l b_l} is the sum of single effects with
+#' PIPs \code{alpha}, posterior means \code{mu} and second moments \code{mu2}.
+#' \code{X} must have the attribute \code{"d"} (the column sums of squares).
+#'
+#' @keywords internal
+
+get_ER2 <- function (X, Y, alpha, mu, mu2) {
+  Xr_L = tcrossprod(alpha * mu, X) # L by N matrix
+  Xr = colSums(Xr_L)
+  postb2 = alpha * mu2 # Posterior second moment.
+  return(sum((Y - Xr)^2) - sum(Xr_L^2) + sum(attr(X,"d") * t(postb2)))
+}
+
+test_ER <- function (X, Y, alpha, mu, mu2) {
+  Xr_L = tcrossprod(alpha * mu, X) # L by N matrix
+  Xr = colSums(Xr_L)
+  postb2 = alpha * mu2 # Posterior second moment.
+  return(sum(Xr^2)- sum(Xr_L^2) + sum(attr(X,"d") * t(postb2)))
+}

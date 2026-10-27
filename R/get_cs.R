@@ -20,7 +20,7 @@ get_cs <- function(V, alpha, G_t_G){
   cs_x <- list()
   for(m in 1:M){
     include_idx <- V[,m] > 1e-9
-    status <- susieR:::in_CS(alpha[[m]], coverage = 0.95)
+    status <- in_CS(alpha[[m]], coverage = 0.95)
     cs <- lapply(1:nrow(status),function(x) which(status[x,]!=0))
     claimed_coverage <- sapply(1:length(cs),
                                function (x) sum(alpha[[m]][x,][cs[[x]]]))
@@ -42,7 +42,7 @@ get_cs <- function(V, alpha, G_t_G){
 
       purity <- NULL
       for (j in 1:length(cs)) {
-        purity <- rbind(purity, matrix(susieR:::get_purity(cs[[j]], X = NULL, Xcorr = susieR:::muffled_cov2cor(G_t_G[[m]]), squared = FALSE, n = 100, use_rfast), 1, 3)) #double check the muffled_cov2cor?
+        purity <- rbind(purity, matrix(get_purity(cs[[j]], X = NULL, Xcorr = muffled_cov2cor(G_t_G[[m]]), squared = FALSE, n = 100, use_rfast), 1, 3)) #double check the muffled_cov2cor?
       }
 
       purity <- as.data.frame(purity)

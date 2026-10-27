@@ -215,15 +215,13 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
           # Note that we shouldn't actually have to include each of the m loci since we are assuming that Gj^TGk = 0
           GytR <- Gy_t_y[[m]] - Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]][-l,] * alpha_a[[m]][-l,]) + mu_gamma*colSums(mu_b[[m]] * alpha_b[[m]]))
 
-          test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(GytR), attr(Gy_t_Gy[[m]],"d"), V_y[l, m], residual_variance = sigma2_y, optimize_V = "optim")
+          test_curr_ss <- fmr_ser(as.numeric(GytR), attr(Gy_t_Gy[[m]],"d"), V_y[l, m], residual_variance = sigma2_y)
 
           mu_a[[m]][l,] <- test_curr_ss$mu
           mu2_a[[m]][l,] <- test_curr_ss$mu2
           alpha_a[[m]][l,] <- test_curr_ss$alpha
           V_y[l,m] <- test_curr_ss$V
-          kl_a[[m]][l] <- -test_curr_ss$lbf_model +
-            susieR:::SER_posterior_e_loglik_ss(attr(Gy_t_Gy[[m]],"d"), GytR, sigma2_y, test_curr_ss$alpha * test_curr_ss$mu,
-                                               test_curr_ss$alpha * test_curr_ss$mu2)
+          kl_a[[m]][l] <- test_curr_ss$kl
         }
       }
 
@@ -238,15 +236,13 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
           Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,]))) + (1/sigma2_y)*(mu_gamma*Gy_t_y[[m]] - mu_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu2_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])))
 
-          test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(Gstar_t_R), attr(Gstar_t_Gstar,"d"), V_x[l, m], residual_variance = 1, optimize_V = "optim")
+          test_curr_ss <- fmr_ser(as.numeric(Gstar_t_R), attr(Gstar_t_Gstar,"d"), V_x[l, m], residual_variance = 1)
 
           mu_b[[m]][l,] <- test_curr_ss$mu
           mu2_b[[m]][l,] <- test_curr_ss$mu2
           alpha_b[[m]][l,] <- test_curr_ss$alpha
           V_x[l,m] <- test_curr_ss$V
-          kl_b[[m]][l] <- -test_curr_ss$lbf_model +
-            susieR:::SER_posterior_e_loglik_ss(attr(Gstar_t_Gstar,"d"), Gstar_t_R, 1, test_curr_ss$alpha * test_curr_ss$mu,
-                                               test_curr_ss$alpha * test_curr_ss$mu2)
+          kl_b[[m]][l] <- test_curr_ss$kl
         }
       }
 
@@ -316,15 +312,13 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
           Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,]))) + (1/sigma2_y)*(mu_gamma*Gy_t_y[[m]] - mu_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu2_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])))
 
-          test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(Gstar_t_R), attr(Gstar_t_Gstar,"d"), V_x[l, m], residual_variance = 1, optimize_V = "optim")
+          test_curr_ss <- fmr_ser(as.numeric(Gstar_t_R), attr(Gstar_t_Gstar,"d"), V_x[l, m], residual_variance = 1)
 
           mu_b[[m]][l,] <- test_curr_ss$mu
           mu2_b[[m]][l,] <- test_curr_ss$mu2
           alpha_b[[m]][l,] <- test_curr_ss$alpha
           V_x[l,m] <- test_curr_ss$V
-          kl_b[[m]][l] <- -test_curr_ss$lbf_model +
-            susieR:::SER_posterior_e_loglik_ss(attr(Gstar_t_Gstar,"d"), Gstar_t_R, 1, test_curr_ss$alpha * test_curr_ss$mu,
-                                               test_curr_ss$alpha * test_curr_ss$mu2)
+          kl_b[[m]][l] <- test_curr_ss$kl
         }
       }
 
@@ -362,15 +356,13 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
           # Note that we shouldn't actually have to include each of the m loci since we are assuming that Gj^TGk = 0
           GytR <- Gy_t_y[[m]] - Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]][-l,] * alpha_a[[m]][-l,]) + mu_gamma*colSums(mu_b[[m]] * alpha_b[[m]]))
 
-          test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(GytR), attr(Gy_t_Gy[[m]],"d"), V_y[l, m], residual_variance = sigma2_y, optimize_V = "optim")
+          test_curr_ss <- fmr_ser(as.numeric(GytR), attr(Gy_t_Gy[[m]],"d"), V_y[l, m], residual_variance = sigma2_y)
 
           mu_a[[m]][l,] <- test_curr_ss$mu
           mu2_a[[m]][l,] <- test_curr_ss$mu2
           alpha_a[[m]][l,] <- test_curr_ss$alpha
           V_y[l,m] <- test_curr_ss$V
-          kl_a[[m]][l] <- -test_curr_ss$lbf_model +
-            susieR:::SER_posterior_e_loglik_ss(attr(Gy_t_Gy[[m]],"d"), GytR, sigma2_y, test_curr_ss$alpha * test_curr_ss$mu,
-                                               test_curr_ss$alpha * test_curr_ss$mu2)
+          kl_a[[m]][l] <- test_curr_ss$kl
         }
       }
 
@@ -419,15 +411,13 @@ run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
 
           Gstar_t_R <- (1/sigma2_x) * (Gx_t_x[[m]] -  Gx_t_Gx[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,]))) + (1/sigma2_y)*(mu_gamma*Gy_t_y[[m]] - mu_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_a[[m]] * alpha_a[[m]])) - mu2_gamma*Gy_t_Gy[[m]] %*% (colSums(mu_b[[m]][-l,] * alpha_b[[m]][-l,])))
 
-          test_curr_ss <- susieR:::single_effect_regression_ss(as.matrix(Gstar_t_R), attr(Gstar_t_Gstar,"d"), V_x[l, m], residual_variance = 1, optimize_V = "optim")
+          test_curr_ss <- fmr_ser(as.numeric(Gstar_t_R), attr(Gstar_t_Gstar,"d"), V_x[l, m], residual_variance = 1)
 
           mu_b[[m]][l,] <- test_curr_ss$mu
           mu2_b[[m]][l,] <- test_curr_ss$mu2
           alpha_b[[m]][l,] <- test_curr_ss$alpha
           V_x[l,m] <- test_curr_ss$V
-          kl_b[[m]][l] <- -test_curr_ss$lbf_model +
-            susieR:::SER_posterior_e_loglik_ss(attr(Gstar_t_Gstar,"d"), Gstar_t_R, 1, test_curr_ss$alpha * test_curr_ss$mu,
-                                               test_curr_ss$alpha * test_curr_ss$mu2)
+          kl_b[[m]][l] <- test_curr_ss$kl
         }
       }
 

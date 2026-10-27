@@ -6,10 +6,9 @@
 # Usage (from the package root):
 #   SUSIE_LIB=<dir containing susieR 0.12.x> Rscript data-raw/check_ind_data_vs_ss.R [data.rds]
 #
-# NOTE: the package calls internal functions of susieR 0.12.x
-# (susieR:::single_effect_regression, ...) that were refactored in later versions,
-# so susieR 0.12.x must be the version that gets loaded. Set SUSIE_LIB to the
-# library directory containing it if it is not the default one.
+# NOTE: the package no longer depends on susieR (single effect regressions and
+# credible sets are implemented in the package). susieR is only used here to build
+# the SuSiE fits used to test the susie_init option; any version can be used.
 
 lib_loc <- "/net/mario/cluster/lib/R/site-library-jammy-40"
 .libPaths(c(lib_loc, .libPaths()))

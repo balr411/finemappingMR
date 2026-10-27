@@ -6,13 +6,11 @@
 # individual-level data, R is the correlation of the exposure genotypes.
 #
 # Usage (from the package root):
-#   SUSIE_LIB=<dir containing susieR 0.12.x> Rscript data-raw/compare_sampleOverlap.R [data.rds]
+#   Rscript data-raw/compare_sampleOverlap.R [data.rds]
+# (the package does not need susieR)
 
 lib_loc <- "/net/mario/cluster/lib/R/site-library-jammy-40"
 .libPaths(c(lib_loc, .libPaths()))
-susie_lib <- Sys.getenv("SUSIE_LIB", unset = lib_loc)
-library("susieR", lib.loc = susie_lib)
-cat("susieR version:", as.character(packageVersion("susieR")), "\n")
 library("stringr", lib.loc = lib_loc)
 library("pkgload", lib.loc = lib_loc)
 pkgload::load_all(".", quiet = TRUE)

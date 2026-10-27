@@ -6,6 +6,9 @@
 #' returns the same components, but the updates are computed from the
 #' phenotypes and genotypes directly instead of from sufficient statistics.
 #' A normal prior with variance \code{sigma2_gamma_prior} is placed on gamma.
+#' The single effect regressions are computed with the package's own
+#' implementation, so fitting does not depend on susieR (only the credible set
+#' calculation, \code{calc_cs_x}/\code{calc_cs_y}, still does).
 #'
 #' Within each locus all quantities are computed exactly as in
 #' \code{run_bayes_method_ss}; in particular, different loci are treated as
@@ -205,21 +208,14 @@ finemappingMR_ind_data <- function(x, y, G_x, G_y,
   x <- x - mean(x)
   y <- y - mean(y)
 
-  #After centering we set intercept = FALSE and standardize = FALSE here, so that
-  #the "d" attribute is the column sums of squares and there is no further scaling
+  #The "d" attribute is the diagonal of G'G, i.e. the column sums of squares of
+  #the centered columns
   for(m in 1:M){
     G_x[[m]] <- sweep(G_x[[m]], 2, colMeans(G_x[[m]]))
     G_y[[m]] <- sweep(G_y[[m]], 2, colMeans(G_y[[m]]))
 
-    out_x <- susieR:::compute_colstats(G_x[[m]], center = FALSE, scale = FALSE)
-    attr(G_x[[m]], "scaled:center") <- out_x$cm
-    attr(G_x[[m]], "scaled:scale") <- out_x$csd
-    attr(G_x[[m]], "d") <- out_x$d
-
-    out_y <- susieR:::compute_colstats(G_y[[m]], center = FALSE, scale = FALSE)
-    attr(G_y[[m]], "scaled:center") <- out_y$cm
-    attr(G_y[[m]], "scaled:scale") <- out_y$csd
-    attr(G_y[[m]], "d") <- out_y$d
+    attr(G_x[[m]], "d") <- colSums(G_x[[m]]^2)
+    attr(G_y[[m]], "d") <- colSums(G_y[[m]]^2)
   }
 
   #Initialize all of the estimates
@@ -262,13 +258,13 @@ finemappingMR_ind_data <- function(x, y, G_x, G_y,
 
   #Fitted values for a and b (without gamma) at the current posterior means
   fit_a <- function(m){
-    susieR:::compute_Xb(G_y[[m]], colSums(alpha_a[[m]] * mu_a[[m]]))
+    as.numeric(G_y[[m]] %*% colSums(alpha_a[[m]] * mu_a[[m]]))
   }
   fit_b_x <- function(m){
-    susieR:::compute_Xb(G_x[[m]], colSums(alpha_b[[m]] * mu_b[[m]]))
+    as.numeric(G_x[[m]] %*% colSums(alpha_b[[m]] * mu_b[[m]]))
   }
   fit_b_y <- function(m){
-    susieR:::compute_Xb(G_y[[m]], colSums(alpha_b[[m]] * mu_b[[m]]))
+    as.numeric(G_y[[m]] %*% colSums(alpha_b[[m]] * mu_b[[m]]))
   }
 
   elbo_conv_vec <- c()
@@ -290,20 +286,18 @@ finemappingMR_ind_data <- function(x, y, G_x, G_y,
           for(l in 1:L_y){
             # Remove lth effect from fitted values.
             # Note that we shouldn't actually have to include each of the m loci since we are assuming that Gj^TGk = 0
-            Xr_a <- Xr_a - susieR:::compute_Xb(G_y[[m]], alpha_a[[m]][l,] * mu_a[[m]][l,])
+            Xr_a <- Xr_a - as.numeric(G_y[[m]] %*% (alpha_a[[m]][l,] * mu_a[[m]][l,]))
 
             R <- y - Xr_a - Xr_b_y
-            test_curr <- susieR:::single_effect_regression(R, G_y[[m]], V_y[l, m], residual_variance = sigma2_y, optimize_V = "optim")
+            test_curr <- fmr_ser(as.numeric(crossprod(G_y[[m]], R)), attr(G_y[[m]], "d"), V_y[l, m], residual_variance = sigma2_y)
 
             mu_a[[m]][l,] <- test_curr$mu
             mu2_a[[m]][l,] <- test_curr$mu2
             alpha_a[[m]][l,] <- test_curr$alpha
             V_y[l, m] <- test_curr$V
-            kl_a[[m]][l] <- -test_curr$loglik +
-              susieR:::SER_posterior_e_loglik(G_y[[m]], R, sigma2_y, test_curr$alpha * test_curr$mu,
-                                              test_curr$alpha * test_curr$mu2)
+            kl_a[[m]][l] <- test_curr$kl
 
-            Xr_a <- Xr_a + susieR:::compute_Xb(G_y[[m]], alpha_a[[m]][l,] * mu_a[[m]][l,])
+            Xr_a <- Xr_a + as.numeric(G_y[[m]] %*% (alpha_a[[m]][l,] * mu_a[[m]][l,]))
           }
         }
 
@@ -314,50 +308,36 @@ finemappingMR_ind_data <- function(x, y, G_x, G_y,
           Xr_b_x <- fit_b_x(m)
           Xr_b_y <- fit_b_y(m)
 
-          #G_star = (G_x/sqrt(sigma2_x) \\ sqrt(mu2_gamma/sigma2_y) * G_y); the
-          #same for every effect l so only build it once per locus
-          G_star <- rbind((1/sqrt(sigma2_x)) * G_x[[m]], sqrt(mu2_gamma/sigma2_y) * G_y[[m]])
-
-          out_star <- susieR:::compute_colstats(G_star, center = FALSE, scale = FALSE)
-          attr(G_star, "scaled:center") <- out_star$cm
-          attr(G_star, "scaled:scale") <- out_star$csd
-          attr(G_star, "d") <- out_star$d
+          #The b update is a regression on G_star = (G_x/sqrt(sigma2_x) \\ sqrt(mu2_gamma/sigma2_y) * G_y)
+          #with residual variance 1. The single effect regression only needs
+          #the diagonal of G_star'G_star (the same for every effect l) and
+          #G_star'R, so G_star does not need to be built.
+          d_star <- attr(G_x[[m]], "d")/sigma2_x + (mu2_gamma/sigma2_y) * attr(G_y[[m]], "d")
 
           resid_var_curr <- 1
 
           for(l in 1:L_x){
             # Remove lth effect from fitted values.
             b_l_old <- alpha_b[[m]][l,] * mu_b[[m]][l,]
-            Xr_b_x <- Xr_b_x - susieR:::compute_Xb(G_x[[m]], b_l_old)
-            Xr_b_y <- Xr_b_y - susieR:::compute_Xb(G_y[[m]], b_l_old)
+            Xr_b_x <- Xr_b_x - as.numeric(G_x[[m]] %*% b_l_old)
+            Xr_b_y <- Xr_b_y - as.numeric(G_y[[m]] %*% b_l_old)
 
-            R_1 <- (1/sqrt(sigma2_x)) * (x - Xr_b_x)
+            #G_star'R = G_x'(x - Xr_b_x)/sigma2_x + G_y'(mu_gamma*(y - Xr_a) - mu2_gamma*Xr_b_y)/sigma2_y
+            Xty_star <- as.numeric(crossprod(G_x[[m]], x - Xr_b_x))/sigma2_x +
+              as.numeric(crossprod(G_y[[m]], mu_gamma * (y - Xr_a) - mu2_gamma * Xr_b_y))/sigma2_y
 
-            #The second block is (mu_gamma*(y - Xr_a) - mu2_gamma*Xr_b_y)/sqrt(mu2_gamma*sigma2_y).
-            #If mu2_gamma = 0 (e.g. at the initial values) G_star has no outcome
-            #contribution so the block is zero.
-            if(mu2_gamma == 0){
-              R_2 <- rep(0, n_y)
-            }else{
-              R_2 <- (1/sqrt(mu2_gamma * sigma2_y)) * (mu_gamma * (y - Xr_a) - mu2_gamma * Xr_b_y)
-            }
-
-            R <- c(R_1, R_2)
-
-            test_curr <- susieR:::single_effect_regression(R, G_star, V_x[l, m], residual_variance = resid_var_curr, optimize_V = "optim")
+            test_curr <- fmr_ser(Xty_star, d_star, V_x[l, m], residual_variance = resid_var_curr)
             #Note the residual variance comes from what is multiplied by the Eq term in the ELBO
 
             mu_b[[m]][l,] <- test_curr$mu
             mu2_b[[m]][l,] <- test_curr$mu2
             alpha_b[[m]][l,] <- test_curr$alpha
             V_x[l, m] <- test_curr$V
-            kl_b[[m]][l] <- -test_curr$loglik +
-              susieR:::SER_posterior_e_loglik(G_star, R, resid_var_curr, test_curr$alpha * test_curr$mu,
-                                              test_curr$alpha * test_curr$mu2)
+            kl_b[[m]][l] <- test_curr$kl
 
             b_l_new <- alpha_b[[m]][l,] * mu_b[[m]][l,]
-            Xr_b_x <- Xr_b_x + susieR:::compute_Xb(G_x[[m]], b_l_new)
-            Xr_b_y <- Xr_b_y + susieR:::compute_Xb(G_y[[m]], b_l_new)
+            Xr_b_x <- Xr_b_x + as.numeric(G_x[[m]] %*% b_l_new)
+            Xr_b_y <- Xr_b_y + as.numeric(G_y[[m]] %*% b_l_new)
           }
         }
 
