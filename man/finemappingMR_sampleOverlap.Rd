@@ -34,7 +34,8 @@ finemappingMR_sampleOverlap(
   sigma2_gamma_prior = 10^6,
   num_samples = 1000,
   beta_gamma_alpha = FALSE,
-  include_pleiotropy = TRUE
+  include_pleiotropy = TRUE,
+  conservative_total_variance = FALSE
 )
 }
 \arguments{
@@ -72,7 +73,7 @@ value provided should be either a scalar or a vector of length
 initial estimates of the prior variances.}
 
 \item{estimate_prior_variance_x}{If \code{estimate_prior_variance_x =
-  TRUE}, the prior variance is estimated (this is a separate
+TRUE}, the prior variance is estimated (this is a separate
 parameter for each of the L_x effects). If provided,
 \code{scaled_prior_variance_x} is then used as an initial value for
 the optimization which is done using \code{optim}.
@@ -81,7 +82,7 @@ prior variance for each of the L_x effects is determined by the
 value supplied to \code{scaled_prior_variance_x}.}
 
 \item{estimate_prior_variance_y}{If \code{estimate_prior_variance_y =
-  TRUE}, the prior variance is estimated (this is a separate
+TRUE}, the prior variance is estimated (this is a separate
 parameter for each of the L_y effects). If provided,
 \code{scaled_prior_variance_y} is then used as an initial value for
 the optimization which is done using \code{optim}.
@@ -139,6 +140,10 @@ to beta - gamma - alpha? Default = FALSE. Currently no functionality.}
 
 \item{include_pleiotropy}{Include a pleiotropy term in the estimation of gamma?
 Default = TRUE. Currently no functionality.}
+
+\item{conservative_total_variance}{Use the conservative estimate of the total
+variance where there is no multiplying the expected variance by 1-rho^2?
+Default = FALSE.}
 }
 \value{
 A list containing various results from the estimation procedure,

@@ -2,18 +2,6 @@
 #'
 #' @keywords internal
 
-negloglik_sampleOverlap_alpha <- function(sl2, RRinvR, Z_star_l, n_y, rho){
-  omega_j <- (n_y/(1 - rho^2)) * RRinvR + 1/sl2
-
-  return(-matrixStats::logSumExp(-0.5*log(sl2*omega_j) + Z_star_l^2/(2 * omega_j)))
-}
-
-negloglik_sampleOverlap_b <- function(sl2, RRinvR, Z_star_l, n_x, n_y, Egamma, Egamma2, rho){
-  omega_j <- ((n_x - 2*rho*sqrt(n_x*n_y)*Egamma + n_y*Egamma2)/(1 - rho^2)) * RRinvR + 1/sl2
-
-  return(-matrixStats::logSumExp(-0.5*log(sl2*omega_j) + Z_star_l^2/(2 * omega_j)))
-}
-
 negloglik_sampleOverlap_alpha_trans <- function(theta, RRinvR, Z_star_l, n_y, rho){
   sl2 <- exp(theta)
 
@@ -40,7 +28,7 @@ elbo_sampleOverlap <- function(ZxRinvZx, ZyRinvZy, ZxRinvZy, Z_x, Z_y, mu_b, mu2
 
   E_btRb <- b_t_b(mu_b, mu2_b, alpha_b, R, n = 1)
 
-  #These parts shared with the regular elbo_rss
+  #These parts are the likelihood terms without sample overlap
   part1 <- ZxRinvZx + ZyRinvZy
   part2 <- -2 * crossprod((sqrt(n_x) * Z_x + sqrt(n_y) * mu_gamma * Z_y), b_post[[1]])
   part3 <- -2 * crossprod((sqrt(n_y) * Z_y), a_post[[1]])
