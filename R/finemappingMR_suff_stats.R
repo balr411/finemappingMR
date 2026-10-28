@@ -122,7 +122,7 @@
 #'
 #' @export
 
-run_bayes_method_ss <- function(Gx_t_Gx, Gx_t_x, xtx,
+finemappingMR_suff_stats <- function(Gx_t_Gx, Gx_t_x, xtx,
                                 Gy_t_Gy, Gy_t_y, yty,
                                 n_x, n_y,
                                 L_x = 10, L_y = 10,

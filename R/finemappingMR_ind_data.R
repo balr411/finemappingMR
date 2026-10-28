@@ -2,7 +2,7 @@
 #'
 #' @description Function that performs our Bayesian MR estimation method using
 #' individual-level data for exposure and outcome. This is the individual-level
-#' analogue of \code{\link{run_bayes_method_ss}}: it has the same options and
+#' analogue of \code{\link{finemappingMR_suff_stats}}: it has the same options and
 #' returns the same components, but the updates are computed from the
 #' phenotypes and genotypes directly instead of from sufficient statistics.
 #' A normal prior with variance \code{sigma2_gamma_prior} is placed on gamma.
@@ -11,7 +11,7 @@
 #' (\code{calc_cs_x}/\code{calc_cs_y}) depends on susieR.
 #'
 #' Within each locus all quantities are computed exactly as in
-#' \code{run_bayes_method_ss}; in particular, different loci are treated as
+#' \code{finemappingMR_suff_stats}; in particular, different loci are treated as
 #' independent (\eqn{G_j'G_k = 0}).
 #'
 #' @param x Exposure individual-level phenotype data (vector). Will be centered.
@@ -84,7 +84,7 @@
 #'   will halt when the difference in the variational lower bound, or
 #'   \dQuote{ELBO} (the objective function to be maximized), is
 #'   less than \code{tol}. Note that this is used in all cases, whereas
-#'   \code{run_bayes_method_ss} only uses it when \code{include_pleiotropy = FALSE}
+#'   \code{finemappingMR_suff_stats} only uses it when \code{include_pleiotropy = FALSE}
 #'   (and otherwise uses 1e-4).
 #'
 #' @param max_iter Maximum number of iterations before stopping estimation procedure.
@@ -125,7 +125,7 @@
 #' vector of ELBO iterations, the vector of likelihood components, and the KL
 #' divergence terms for b and alpha. Note that the ELBO includes the
 #' \eqn{y'y/(2\sigma_y^2) + x'x/(2\sigma_x^2)} constants, which are left out of
-#' the ELBO returned by \code{run_bayes_method_ss}.
+#' the ELBO returned by \code{finemappingMR_suff_stats}.
 #'
 #' @importFrom stats var
 #' @importFrom stringr str_glue

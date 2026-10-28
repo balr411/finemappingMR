@@ -1,5 +1,5 @@
 # Checks that finemappingMR_ind_data() (individual-level data) gives the same
-# answer as run_bayes_method_ss() (sufficient statistics computed from the same
+# answer as finemappingMR_suff_stats() (sufficient statistics computed from the same
 # individual-level data), for each option combination, using the data saved by
 # data-raw/sim_ind_data_gamma0.2.R.
 #
@@ -59,7 +59,7 @@ compare <- function(label, G_x_in, G_y_in, ...){
 
   set.seed(1)
   t_ss <- system.time(
-    fit_ss <- run_bayes_method_ss(ss$Gx_t_Gx, ss$Gx_t_x, ss$xtx, ss$Gy_t_Gy, ss$Gy_t_y, ss$yty,
+    fit_ss <- finemappingMR_suff_stats(ss$Gx_t_Gx, ss$Gx_t_x, ss$xtx, ss$Gy_t_Gy, ss$Gy_t_y, ss$yty,
                                   length(x), length(y), ...))["elapsed"]
   set.seed(1)
   t_ind <- system.time(

@@ -1,5 +1,5 @@
 # Compares finemappingMR_sampleOverlap() (Z-scores + correlation matrix, rho = 0)
-# with run_bayes_method_ss() (sufficient statistics) and finemappingMR_ind_data()
+# with finemappingMR_suff_stats() (sufficient statistics) and finemappingMR_ind_data()
 # (individual-level data) on the data saved by data-raw/sim_ind_data_gamma0.2.R.
 #
 # Z-scores are the marginal-regression (with intercept) t-statistics from the
@@ -41,7 +41,7 @@ Gxc <- sweep(G_x, 2, colMeans(G_x)); Gyc <- sweep(G_y, 2, colMeans(G_y))
 
 num_samples <- 200
 set.seed(1)
-fit_ss <- run_bayes_method_ss(list(crossprod(Gxc)), list(crossprod(Gxc, xc)), sum(xc^2),
+fit_ss <- finemappingMR_suff_stats(list(crossprod(Gxc)), list(crossprod(Gxc, xc)), sum(xc^2),
                               list(crossprod(Gyc)), list(crossprod(Gyc, yc)), sum(yc^2),
                               n_x, n_y, tol = 1e-4, calc_cs_x = TRUE, calc_cs_y = TRUE,
                               num_samples = num_samples)
