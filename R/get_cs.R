@@ -10,7 +10,9 @@
 #'
 #' @param G_t_G The list of length M of covariance matrices for the genotypes
 #'
-#' @return A list of lists containing the credible sets for each region
+#' @return A list with \code{cs}, the credible sets for each region, and
+#' \code{idx}, a list (one element per region) of the indices of the effects
+#' (rows of \code{alpha}) that the credible sets correspond to.
 #'
 #' @export
 
@@ -18,6 +20,7 @@ get_cs <- function(V, alpha, G_t_G){
   M <- length(alpha)
 
   cs_x <- list()
+  idx_all <- list()
   for(m in 1:M){
     include_idx <- V[,m] > 1e-9
     status <- in_CS(alpha[[m]], coverage = 0.95)
@@ -63,8 +66,10 @@ get_cs <- function(V, alpha, G_t_G){
         idx_orig <- c()
       }
     }
+
+    idx_all[m] <- list(idx_orig)
   }
 
-  return(list(cs = cs_x, idx = idx_orig))
+  return(list(cs = cs_x, idx = idx_all))
 
 }

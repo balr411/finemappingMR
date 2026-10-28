@@ -14,7 +14,9 @@ get_cs_rss(V, alpha, R)
 \item{R}{The list of length M of correlation matrices}
 }
 \value{
-A list of lists containing the credible sets for each region
+A list with \code{cs}, the credible sets for each region, and
+\code{idx}, a list (one element per region) of the indices of the effects
+(rows of \code{alpha}) that the credible sets correspond to.
 }
 \description{
 Function that gets credible sets for the exposure or outcome.

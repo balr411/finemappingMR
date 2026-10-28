@@ -157,8 +157,8 @@ returns the same components, but the updates are computed from the
 phenotypes and genotypes directly instead of from sufficient statistics.
 A normal prior with variance \code{sigma2_gamma_prior} is placed on gamma.
 The single effect regressions are computed with the package's own
-implementation, so fitting does not depend on susieR (only the credible set
-calculation, \code{calc_cs_x}/\code{calc_cs_y}, still does).
+implementation, so neither fitting nor the credible set calculation
+(\code{calc_cs_x}/\code{calc_cs_y}) depends on susieR.
 
 Within each locus all quantities are computed exactly as in
 \code{run_bayes_method_ss}; in particular, different loci are treated as

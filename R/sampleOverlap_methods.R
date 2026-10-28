@@ -30,18 +30,21 @@ elbo_sampleOverlap <- function(ZxRinvZx, ZyRinvZy, ZxRinvZy, Z_x, Z_y, mu_b, mu2
 
   #These parts are the likelihood terms without sample overlap
   part1 <- ZxRinvZx + ZyRinvZy
-  part2 <- -2 * crossprod((sqrt(n_x) * Z_x + sqrt(n_y) * mu_gamma * Z_y), b_post[[1]])
-  part3 <- -2 * crossprod((sqrt(n_y) * Z_y), a_post[[1]])
+  #Sum a per-region quantity over the regions
+  sum_reg <- function(f, ...) sum(unlist(Map(f, ...)))
+
+  part2 <- -2 * sum_reg(function(zx, zy, b) sum((sqrt(n_x) * zx + sqrt(n_y) * mu_gamma * zy) * b), Z_x, Z_y, b_post)
+  part3 <- -2 * sum_reg(function(zy, a) sum(sqrt(n_y) * zy * a), Z_y, a_post)
   part4 <- (n_x + n_y*mu2_gamma) * E_btRb
   part5 <- b_t_b(mu_a, mu2_a, alpha_a, R, n = n_y)
-  part6 <- 2 * n_y * mu_gamma * crossprod(a_post[[1]], R) %*% b_post[[1]]
+  part6 <- 2 * n_y * mu_gamma * sum_reg(function(a, Rm, b) sum(a * (Rm %*% b)), a_post, R, b_post)
 
   #These parts from the cross term
   part7 <- ZxRinvZy
-  part8 <- -crossprod((sqrt(n_x) * Z_y + sqrt(n_y) * mu_gamma * Z_x), b_post[[1]])
-  part9 <- -crossprod((sqrt(n_y) * Z_x), a_post[[1]])
+  part8 <- -sum_reg(function(zx, zy, b) sum((sqrt(n_x) * zy + sqrt(n_y) * mu_gamma * zx) * b), Z_x, Z_y, b_post)
+  part9 <- -sum_reg(function(zx, a) sum(sqrt(n_y) * zx * a), Z_x, a_post)
   part10 <- sqrt(n_x*n_y) * mu_gamma * E_btRb
-  part11 <- sqrt(n_x*n_y) * crossprod(a_post[[1]], R) %*% b_post[[1]]
+  part11 <- sqrt(n_x*n_y) * sum_reg(function(a, Rm, b) sum(a * (Rm %*% b)), a_post, R, b_post)
 
   Eloglik <- (-0.5/(1-rho^2)) * (part1 + part2 + part3 + part4 + part5 + part6 - 2*rho*(part7 + part8 + part9 + part10 + part11))
 
@@ -147,7 +150,7 @@ sampleOverlap_total_var_rss <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu
     }
 
 
-    den_curr <- (1 - rho^2 + sigma2_gamma_prior * n_y * sum(unlist(crossprod(b_full[[1]], R) %*% b_full[[1]])))
+    den_curr <- (1 - rho^2 + sigma2_gamma_prior * n_y * sum(unlist(Map(function(b, Rm) sum(b * (Rm %*% b)), b_full, R))))
     E_var_curr <- (sigma2_gamma_prior * (1-rho^2))/den_curr
 
     #Now generate the estimates of the expectation and variance
@@ -157,9 +160,9 @@ sampleOverlap_total_var_rss <- function(V_x, V_y, mu_b, mu2_b, alpha_b, mu_a, mu
 
     #Again note when Z_y is made to be a list the following will work
     #num_curr <- sum(unlist(Map(crossprod, b_full, Z_y))) - sqrt(n_y)*sum(unlist(Map("%*%", Map(crossprod, b_full, R), a_full)))
-    num_curr_part1 <- sqrt(n_y) * (sum(unlist(Z_y %*% b_full[[1]])) - sqrt(n_y)*sum(unlist(crossprod(b_full[[1]], R) %*% a_full[[1]]))) ## Is there an extra sqrt(n_y) here? - no it is correct as is
-    num_curr_part2 <- -rho*sqrt(n_y)*sum(unlist(Z_x %*% b_full[[1]]))
-    num_curr_part3 <- rho * sqrt(n_x*n_y) * sum(unlist(crossprod(b_full[[1]], R) %*% b_full[[1]]))
+    num_curr_part1 <- sqrt(n_y) * (sum(unlist(Map(function(z, b) sum(z * b), Z_y, b_full))) - sqrt(n_y)*sum(unlist(Map(function(b, Rm, a) sum(b * (Rm %*% a)), b_full, R, a_full)))) ## Is there an extra sqrt(n_y) here? - no it is correct as is
+    num_curr_part2 <- -rho*sqrt(n_y)*sum(unlist(Map(function(z, b) sum(z * b), Z_x, b_full)))
+    num_curr_part3 <- rho * sqrt(n_x*n_y) * sum(unlist(Map(function(b, Rm) sum(b * (Rm %*% b)), b_full, R)))
 
     Var_E_curr <- (sigma2_gamma_prior * (num_curr_part1 + num_curr_part2 + num_curr_part3))/den_curr
     Var_E2_curr <- ((sigma2_gamma_prior * (num_curr_part1 + num_curr_part2 + num_curr_part3))/den_curr)^2
@@ -272,7 +275,7 @@ sampleOverlap_total_var_rss_conservative <- function(V_x, V_y, mu_b, mu2_b, alph
     }
 
 
-    den_curr <- (1 - rho^2 + sigma2_gamma_prior * n_y * sum(unlist(crossprod(b_full[[1]], R) %*% b_full[[1]])))
+    den_curr <- (1 - rho^2 + sigma2_gamma_prior * n_y * sum(unlist(Map(function(b, Rm) sum(b * (Rm %*% b)), b_full, R))))
     E_var_curr <- (sigma2_gamma_prior)/den_curr
 
     #Now generate the estimates of the expectation and variance
@@ -282,9 +285,9 @@ sampleOverlap_total_var_rss_conservative <- function(V_x, V_y, mu_b, mu2_b, alph
 
     #Again note when Z_y is made to be a list the following will work
     #num_curr <- sum(unlist(Map(crossprod, b_full, Z_y))) - sqrt(n_y)*sum(unlist(Map("%*%", Map(crossprod, b_full, R), a_full)))
-    num_curr_part1 <- sqrt(n_y) * (sum(unlist(Z_y %*% b_full[[1]])) - sqrt(n_y)*sum(unlist(crossprod(b_full[[1]], R) %*% a_full[[1]]))) ## Is there an extra sqrt(n_y) here? - no it is correct as is
-    num_curr_part2 <- -rho*sqrt(n_y)*sum(unlist(Z_x %*% b_full[[1]]))
-    num_curr_part3 <- rho * sqrt(n_x*n_y) * sum(unlist(crossprod(b_full[[1]], R) %*% b_full[[1]]))
+    num_curr_part1 <- sqrt(n_y) * (sum(unlist(Map(function(z, b) sum(z * b), Z_y, b_full))) - sqrt(n_y)*sum(unlist(Map(function(b, Rm, a) sum(b * (Rm %*% a)), b_full, R, a_full)))) ## Is there an extra sqrt(n_y) here? - no it is correct as is
+    num_curr_part2 <- -rho*sqrt(n_y)*sum(unlist(Map(function(z, b) sum(z * b), Z_x, b_full)))
+    num_curr_part3 <- rho * sqrt(n_x*n_y) * sum(unlist(Map(function(b, Rm) sum(b * (Rm %*% b)), b_full, R)))
 
     Var_E_curr <- (sigma2_gamma_prior * (num_curr_part1 + num_curr_part2 + num_curr_part3))/den_curr
     Var_E2_curr <- ((sigma2_gamma_prior * (num_curr_part1 + num_curr_part2 + num_curr_part3))/den_curr)^2

@@ -27,16 +27,17 @@ get_ser_neg_KL_divergence_rss <- function(pip, prior_var, post_mean, post_var){
 b_t_b <- function(mu_b, mu2_b, alpha_b, R, n){
   #Note n can be whatever we want multiplied by R (I think)
   #Also works for alpha
-  vec_den <- vector(length = 1)
-  for(m in 1:1){
+  #R is a list of correlation matrices (one per region); the result is summed over regions
+  M <- length(R)
+  vec_den <- vector(length = M)
+  for(m in 1:M){
     B <- alpha_b[[m]] * mu_b[[m]]
-    XB2 <- n * sum((B %*% R) * B)
+    XB2 <- n * sum((B %*% R[[m]]) * B)
     betabar <- colSums(B)
     d <- n
     postb2 <- alpha_b[[m]] * mu2_b[[m]]
-    vec_den[m] <- sum(betabar * (n*R %*% betabar)) - XB2 + sum(d * t(postb2))
+    vec_den[m] <- sum(betabar * (n*R[[m]] %*% betabar)) - XB2 + sum(d * t(postb2))
   }
 
-  return(vec_den)
+  return(sum(vec_den))
 }
-
